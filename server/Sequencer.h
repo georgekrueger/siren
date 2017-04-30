@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include "../JuceLibraryCode/JuceHeader.h"
 
 class Event
 {
@@ -42,15 +43,17 @@ public:
 	float value_;
 };
 
-class Track
+class Track : public HighResolutionTimer
 {
 public:
 	Track() {}
 	
+protected:
+	void hiResTimerCallback() {}
 
 private:
 	std::vector<std::unique_ptr<Event>> events_;
-	std::vector<std::unique_ptr<Event>> pending_events_;
+	std::vector<std::unique_ptr<Event>> loaded_events_;
 };
 
 class Sequencer
