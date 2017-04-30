@@ -1,14 +1,14 @@
 import httplib
 from datetime import datetime
 
+def set_bpm(bpm):
+	pass
+
 def load_instrument(track_num, instrument):
 	pass
 
-def load_pattern(track_num, pattern):
-	pass
-
 # play pattern on given track
-def play(track_num):
+def play(track_num, pattern, quantize):
 	pass
 
 # stop track if playing
