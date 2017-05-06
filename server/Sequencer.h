@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <map>
 #include <memory>
 #include "../JuceLibraryCode/JuceHeader.h"
 
@@ -43,26 +44,56 @@ public:
 	float value_;
 };
 
+typedef std::vector<std::unique_ptr<Event>> EventList;
+
+enum class Quantize
+{
+	NOW,
+	BEAT,
+	BAR
+};
+
 class Track : public HighResolutionTimer
 {
 public:
-	Track() {}
+	Track(double bpm) : curr_event_(0) {}
+	~Track() {}
+
+	// schedule a pattern to be played at the next quantize point (beat/bar)
+	// current events will keep playing up until the new pattern starts
+	void play(std::string pattern_json, Quantize start_point);
 	
+	// Stop playing all events at the specified stop point
+	void stop(Quantize stop_point);
+	
+	void setBpm(double bpm);
+
 protected:
-	void hiResTimerCallback() {}
+	void hiResTimerCallback();
 
 private:
-	std::vector<std::unique_ptr<Event>> events_;
-	std::vector<std::unique_ptr<Event>> loaded_events_;
+	EventList events_;
+	EventList loaded_events_;
+	size_t curr_event_;
+	double bpm_;
 };
 
 class Sequencer
 {
 public:
-	Sequencer() {}
-	~Sequencer() {}
+	Sequencer();
+	~Sequencer();
+
+	/**
+	* Get the track if it exists or create it and return it if it doesn't exist
+	* Note: Track numbers start at 1
+	*/
+	Track* getTrack(unsigned int track);
+
+	void setBpm(double bpm);
 
 private:
-	int bpm_;
+	double bpm_;
+	std::map<unsigned int, std::unique_ptr<Track>> tracks_;
 	
 };
