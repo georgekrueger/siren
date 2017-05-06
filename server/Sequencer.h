@@ -10,14 +10,15 @@ class Event
 {
 public:
 	enum class Type { NOTE_ON, NOTE_OFF, PRESET, PARAM };
-	Event(Type type) : type_(type) {}
+	Event(Type type, float pos) : type_(type), pos_(pos) {}
 	Type type_;
+	float pos_;
 };
 
 class NoteOnEvent : public Event
 {
 public:
-	NoteOnEvent(int midi_note, float velocity) : Event(Type::NOTE_ON), midi_note_(midi_note), velocity_(velocity) {}
+	NoteOnEvent(float pos, int midi_note, float velocity) : Event(Type::NOTE_ON, pos), midi_note_(midi_note), velocity_(velocity) {}
 	int midi_note_;
 	float velocity_;
 };
@@ -25,10 +26,10 @@ public:
 class NoteOffEvent : public Event
 {
 public:
-	NoteOffEvent(int midi_note) : Event(Type::NOTE_OFF), midi_note_(midi_note) {}
+	NoteOffEvent(float pos, int midi_note) : Event(Type::NOTE_OFF, pos), midi_note_(midi_note) {}
 	int midi_note_;
 };
-
+/*
 class PresetEvent : public Event
 {
 public:
@@ -43,6 +44,7 @@ public:
 	std::string param_;
 	float value_;
 };
+*/
 
 typedef std::vector<std::unique_ptr<Event>> EventList;
 
@@ -74,6 +76,7 @@ protected:
 private:
 	EventList events_;
 	EventList loaded_events_;
+	Quantize loaded_start_point_;
 	size_t curr_event_;
 	double bpm_;
 };
