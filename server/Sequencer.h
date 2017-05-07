@@ -4,21 +4,22 @@
 #include <vector>
 #include <map>
 #include <memory>
+#include <chrono>
 #include "../JuceLibraryCode/JuceHeader.h"
 
 class Event
 {
 public:
 	enum class Type { NOTE_ON, NOTE_OFF, PRESET, PARAM };
-	Event(Type type, float pos) : type_(type), pos_(pos) {}
+	Event(Type type, double pos) : type_(type), pos_(pos) {}
 	Type type_;
-	float pos_;
+	double pos_;
 };
 
 class NoteOnEvent : public Event
 {
 public:
-	NoteOnEvent(float pos, int midi_note, float velocity) : Event(Type::NOTE_ON, pos), midi_note_(midi_note), velocity_(velocity) {}
+	NoteOnEvent(double pos, int midi_note, float velocity) : Event(Type::NOTE_ON, pos), midi_note_(midi_note), velocity_(velocity) {}
 	int midi_note_;
 	float velocity_;
 };
@@ -26,7 +27,7 @@ public:
 class NoteOffEvent : public Event
 {
 public:
-	NoteOffEvent(float pos, int midi_note) : Event(Type::NOTE_OFF, pos), midi_note_(midi_note) {}
+	NoteOffEvent(double pos, int midi_note) : Event(Type::NOTE_OFF, pos), midi_note_(midi_note) {}
 	int midi_note_;
 };
 /*
@@ -46,27 +47,35 @@ public:
 };
 */
 
-typedef std::vector<std::unique_ptr<Event>> EventList;
-
 enum class Quantize
 {
 	NOW,
 	BEAT,
-	BAR
+	BAR,
+	PATTERN
+};
+
+typedef std::map<double, std::unique_ptr<Event>> Events;
+
+struct Pattern
+{
+	Pattern() : start_(Quantize::BAR), length_(4) {}
+
+	Quantize start_;
+	double length_;
+	Events events_;
 };
 
 class Track : public HighResolutionTimer
 {
 public:
-	Track(double bpm) : curr_event_(0) {}
+	Track(double bpm) : cursor_pos_(0), bpm_(bpm) {}
 	~Track() {}
 
-	// schedule a pattern to be played at the next quantize point (beat/bar)
-	// current events will keep playing up until the new pattern starts
-	void play(std::string pattern_json, Quantize start_point);
+	// schedule a pattern to be played
+	void play(std::string json);
 	
-	// Stop playing all events at the specified stop point
-	void stop(Quantize stop_point);
+	void stop(std::string json);
 	
 	void setBpm(double bpm);
 
@@ -74,11 +83,13 @@ protected:
 	void hiResTimerCallback();
 
 private:
-	EventList events_;
-	EventList loaded_events_;
-	Quantize loaded_start_point_;
-	size_t curr_event_;
+	std::unique_ptr<Pattern> active_pattern_;
+	std::unique_ptr<Pattern> loaded_pattern_;
 	double bpm_;
+	double cursor_pos_;
+	std::chrono::time_point<std::chrono::steady_clock> timer_start_point_;
+
+	void resetTimer();
 };
 
 class Sequencer
