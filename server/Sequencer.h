@@ -10,7 +10,7 @@
 class Event
 {
 public:
-	enum class Type { NOTE_ON, NOTE_OFF, PRESET, PARAM };
+	enum class Type { NOTE_ON, NOTE_OFF, PRESET, PARAM, CONTROL };
 	Event(Type type, double pos) : type_(type), pos_(pos) {}
 	Type type_;
 	double pos_;
@@ -30,6 +30,14 @@ public:
 	NoteOffEvent(double pos, int midi_note) : Event(Type::NOTE_OFF, pos), midi_note_(midi_note) {}
 	int midi_note_;
 };
+
+class ControlEvent : public Event
+{
+public:
+	ControlEvent(double pos, std::string action) : Event(Type::CONTROL, pos), action_(action) {}
+	std::string action_;
+};
+
 /*
 class PresetEvent : public Event
 {
@@ -50,9 +58,7 @@ public:
 enum class Quantize
 {
 	NOW,
-	BEAT,
-	BAR,
-	PATTERN
+	BAR
 };
 
 typedef std::map<double, std::unique_ptr<Event>> Events;
@@ -69,7 +75,7 @@ struct Pattern
 class Track : public HighResolutionTimer
 {
 public:
-	Track(double bpm) : cursor_pos_(0), bpm_(bpm) {}
+	Track(double bpm) : cursor_pos_(0), playing_(false), timer_running_(false), bpm_(bpm) {}
 	~Track() {}
 
 	// schedule a pattern to be played
@@ -78,6 +84,7 @@ public:
 	void stop(std::string json);
 	
 	void setBpm(double bpm);
+	void setTimeSignature(int num, int den);
 
 protected:
 	void hiResTimerCallback();
@@ -86,10 +93,18 @@ private:
 	std::unique_ptr<Pattern> active_pattern_;
 	std::unique_ptr<Pattern> loaded_pattern_;
 	double bpm_;
+	int time_sig_num_;
+	int time_sig_den_;
 	double cursor_pos_;
+	bool playing_;
+	bool timer_running_;
 	std::chrono::time_point<std::chrono::steady_clock> timer_start_point_;
+	std::vector<int> active_notes_; 
 
 	void resetTimer();
+	int64 getTimeToNextBar();
+	double us_to_beats(int64 us);
+	int64 beats_to_us(double beats);
 };
 
 class Sequencer

@@ -4,7 +4,6 @@ using namespace std;
 
 Sequencer::Sequencer() : bpm_(120)
 {
-	chrono::time_point<chrono::steady_clock> tp = chrono::steady_clock::now();
 }
 
 Sequencer::~Sequencer()
@@ -45,7 +44,6 @@ void Track::play(std::string json)
 	// 
 
 	loaded_pattern_ = make_unique<Pattern>();
-
 	var parse_results;
 	JSON::parse(json, parse_results);
 	DynamicObject* obj = parse_results.getDynamicObject();
@@ -56,9 +54,6 @@ void Track::play(std::string json)
 		String start_quantize = obj->getProperty("quantize").toString();
 		if (start_quantize == "bar") {
 			loaded_pattern_->start_ = Quantize::BAR;
-		}
-		if (start_quantize == "pattern") {
-			loaded_pattern_->start_ = Quantize::PATTERN;
 		}
 	}
 	Array<var>* event_array = parse_results.getArray();
@@ -79,12 +74,67 @@ void Track::play(std::string json)
 		}
 	}
 
+	/*double beat_unit = 1 / time_sig_den_;
+	for (int beat = 0; beat < time_sig_num_; ++beat) {
+		double beat_pos = beat * beat_unit;
+		auto beat_event = make_unique<ControlEvent>(beat_pos, "beat");
+		loaded_pattern_->events_.insert(make_pair(beat_pos, move(beat_event)));
+	}*/
+
+	// insert bar events
+	double bar_unit = time_sig_num_ / time_sig_den_;
+	int num_bars = static_cast<int>(loaded_pattern_->length_ / bar_unit);
+	for (int bar = 0; bar < num_bars; ++bar) {
+		double bar_pos = bar * bar_unit;
+		auto bar_event = make_unique<ControlEvent>(bar_pos, "bar");
+		loaded_pattern_->events_.insert(make_pair(bar_pos, move(bar_event)));
+	}
+
+	// insert end of pattern event
+	auto pattern_end_event = make_unique<ControlEvent>(loaded_pattern_->length_, "pattern_end");
+	loaded_pattern_->events_.insert(make_pair(loaded_pattern_->length_, move(pattern_end_event)));
+
+	if (!timer_running_ && loaded_pattern_->start_ == Quantize::BAR) {
+		// set timer to start at next bar
+		
+	}
+
 	resetTimer();
+}
+
+double Track::us_to_beats(int64 us)
+{
+	double beats_per_us = bpm_ / 60 / 1000000;
+	return (us * beats_per_us);
+}
+
+int64 Track::beats_to_us(double beats)
+{
+	double bps = bpm_ / 60;
+	return static_cast<int64>(beats * (1000000 / bps));
+}
+
+int64 Track::getTimeToNextBar()
+{
+	chrono::time_point<chrono::steady_clock> begin;
+	chrono::time_point<chrono::steady_clock> now = chrono::steady_clock::now();
+	int64 us_since_begin = chrono::duration_cast<std::chrono::microseconds>(now - begin).count();
+	double bar_length = time_sig_num_ / time_sig_den_;
+	int64 bar_length_us = beats_to_us(bar_length);
+	return ((us_since_begin / bar_length_us) + 1) * bar_length_us;
 }
 
 void Track::resetTimer()
 {
+	if (timer_running_) {
+		chrono::time_point<chrono::steady_clock> now = chrono::steady_clock::now();
+		int64 us_elapsed = chrono::duration_cast<chrono::microseconds>(now - timer_start_point_).count();
+		cursor_pos_ += beats_to_us(us_elapsed);
+	}
 
+
+
+	timer_start_point_ = chrono::steady_clock::now();
 }
 
 void Track::stop(std::string json)
@@ -95,7 +145,14 @@ void Track::stop(std::string json)
 void Track::setBpm(double bpm)
 {
 	bpm_ = bpm;
-	// TODO: reset timer
+	resetTimer();
+}
+
+void Track::setTimeSignature(int num, int den)
+{
+	time_sig_num_ = num;
+	time_sig_den_ = den;
+	resetTimer();
 }
 
 void Track::hiResTimerCallback()
