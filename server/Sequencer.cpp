@@ -94,12 +94,15 @@ void Track::play(std::string json)
 	auto pattern_end_event = make_unique<ControlEvent>(loaded_pattern_->length_, "pattern_end");
 	loaded_pattern_->events_.insert(make_pair(loaded_pattern_->length_, move(pattern_end_event)));
 
-	if (!timer_running_ && loaded_pattern_->start_ == Quantize::BAR) {
+	if (!isTimerRunning() && loaded_pattern_->start_ == Quantize::BAR) {
 		// set timer to start at next bar
-		
+		int64 time_to_next_bar = getTimeToNextBar();
+		startTimer(time_to_next_bar / 1000);
+		timer_start_point_ = chrono::steady_clock::now();
 	}
-
-	resetTimer();
+	else {
+		update();
+	}
 }
 
 double Track::us_to_beats(int64 us)
@@ -124,19 +127,6 @@ int64 Track::getTimeToNextBar()
 	return ((us_since_begin / bar_length_us) + 1) * bar_length_us;
 }
 
-void Track::resetTimer()
-{
-	if (timer_running_) {
-		chrono::time_point<chrono::steady_clock> now = chrono::steady_clock::now();
-		int64 us_elapsed = chrono::duration_cast<chrono::microseconds>(now - timer_start_point_).count();
-		cursor_pos_ += beats_to_us(us_elapsed);
-	}
-
-
-
-	timer_start_point_ = chrono::steady_clock::now();
-}
-
 void Track::stop(std::string json)
 {
 
@@ -145,17 +135,42 @@ void Track::stop(std::string json)
 void Track::setBpm(double bpm)
 {
 	bpm_ = bpm;
-	resetTimer();
+	update();
 }
 
 void Track::setTimeSignature(int num, int den)
 {
 	time_sig_num_ = num;
 	time_sig_den_ = den;
-	resetTimer();
+	update();
 }
 
 void Track::hiResTimerCallback()
 {
+	
+}
 
+void trigger_event(Event* event)
+{
+}
+
+void Track::update()
+{
+	if (isTimerRunning()) {
+		// update cursor position
+		chrono::time_point<chrono::steady_clock> now = chrono::steady_clock::now();
+		int64 us_elapsed = chrono::duration_cast<chrono::microseconds>(now - timer_start_point_).count();
+		cursor_pos_ += beats_to_us(us_elapsed);
+	}
+	stopTimer();
+
+	auto it = active_pattern_->events_.lower_bound(cursor_pos_);
+	while (it != active_pattern_->events_.end() && it->second->pos_ <= cursor_pos_ + 0.001) {
+		trigger_event(it->second.get());
+		++it;
+	}
+	int64 time_to_next_event = 0;
+
+	startTimer(time_to_next_event / 1000);
+	timer_start_point_ = chrono::steady_clock::now();
 }

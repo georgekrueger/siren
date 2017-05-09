@@ -75,7 +75,7 @@ struct Pattern
 class Track : public HighResolutionTimer
 {
 public:
-	Track(double bpm) : cursor_pos_(0), playing_(false), timer_running_(false), bpm_(bpm) {}
+	Track(double bpm) : cursor_pos_(0), bpm_(bpm) {}
 	~Track() {}
 
 	// schedule a pattern to be played
@@ -96,15 +96,14 @@ private:
 	int time_sig_num_;
 	int time_sig_den_;
 	double cursor_pos_;
-	bool playing_;
-	bool timer_running_;
 	std::chrono::time_point<std::chrono::steady_clock> timer_start_point_;
 	std::vector<int> active_notes_; 
 
-	void resetTimer();
+	void update();
 	int64 getTimeToNextBar();
 	double us_to_beats(int64 us);
 	int64 beats_to_us(double beats);
+	void trigger_event(Event* event);
 };
 
 class Sequencer
