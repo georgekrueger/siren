@@ -162,13 +162,32 @@ void Track::update()
 		int64 us_elapsed = chrono::duration_cast<chrono::microseconds>(now - timer_start_point_).count();
 		cursor_pos_ += beats_to_us(us_elapsed);
 	}
+	if (cursor_pos_ >= active_pattern_->length_) {
+		cursor_pos_ -= active_pattern_->length_;
+	}
 	stopTimer();
 
 	auto it = active_pattern_->events_.lower_bound(cursor_pos_);
-	while (it != active_pattern_->events_.end() && it->second->pos_ <= cursor_pos_ + 0.001) {
-		trigger_event(it->second.get());
-		++it;
+	if (it == active_pattern_->events_.end()) {
+		return;
 	}
+
+	// check backwards
+	auto rit = Events::reverse_iterator(it);
+	while (rit != active_pattern_->events_.rend() && 
+		rit->second->pos_ <= cursor_pos_ && rit->second->pos_ >= cursor_pos_ - 0.001) 
+	{
+		++rit;
+	}
+
+	auto fit = rit.base()--;
+	while (fit != active_pattern_->events_.eend() && fit->second->pos_ >= cursor_pos_ - 0.001 &&
+		fit->second->pos_ <= cursor_pos_ + 0.001)
+	{
+		trigger_event(it->second.get());
+		++fit;
+	}
+
 	int64 time_to_next_event = 0;
 
 	startTimer(time_to_next_event / 1000);
