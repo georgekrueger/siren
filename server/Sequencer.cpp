@@ -2,7 +2,42 @@
 
 using namespace std;
 
-Sequencer::Sequencer() : bpm_(120), time_sig_num_(4), time_sig_den_(4)
+double Pattern::update(double elapsed, vector<unique_ptr<Event>>& out_events)
+{
+	cursor_ += elapsed;
+
+	if (events_.empty() || length_ == 0) {
+		return -1;
+	}
+
+	double thresh = 0.001;
+	while (1) {
+		for (auto& kv : events_) {
+			double event_pos = kv.first;
+			auto& event = kv.second;
+			if (cursor_ > length_) {
+				cursor_ = 0;
+				continue;
+			}
+			if (event_pos >= cursor_ - thresh && event_pos <= cursor_ + thresh) {
+				if (event->type_ == Event::Type::CONTROL) {
+					cursor_ = 0;
+					continue;
+				}
+				out_events.push_back(unique_ptr<Event>(new Event(*event)));
+			}
+			break;
+		}
+	}
+
+	auto it = events_.lower_bound(cursor_);
+	if (it == events_.end()) {
+		return -1.0;
+	}
+	return it->first - cursor_;
+}
+
+Sequencer::Sequencer() : bpm_(120), time_sig_num_(4), time_sig_den_(4), next_timer_is_bar(false)
 {
 }
 
@@ -53,36 +88,20 @@ void Sequencer::play(unsigned int track, std::string json)
 		}
 	}
 
-	pending_patterns_.push_back(make_pair(time_to_next_bar, move(new_pattern)));
+	auto pattern_end_event = make_unique<ControlEvent>(new_pattern->length_, "pattern_end");
+	new_pattern->events_.insert(make_pair(new_pattern->length_, move(pattern_end_event)));
 
+	pending_patterns_.push_back(make_pair(track, move(new_pattern)));
 
-	// insert bar events
-	//double bar_unit = time_sig_num_ / time_sig_den_;
-	//int num_bars = static_cast<int>(loaded_pattern_->length_ / bar_unit);
-	//for (int bar = 0; bar < num_bars; ++bar) {
-	//	double bar_pos = bar * bar_unit;
-	//	auto bar_event = make_unique<ControlEvent>(bar_pos, "bar");
-	//	loaded_pattern_->events_.insert(make_pair(bar_pos, move(bar_event)));
-	//}
-
-	// insert end of pattern event
-	//auto pattern_end_event = make_unique<ControlEvent>(loaded_pattern_->length_, "pattern_end");
-	//loaded_pattern_->events_.insert(make_pair(loaded_pattern_->length_, move(pattern_end_event)));
-
-	//if (!isTimerRunning() && loaded_pattern_->start_ == Quantize::BAR) {
-	//	// set timer to start at next bar
-	//	int64 time_to_next_bar = getTimeToNextBar();
-	//	startTimer(time_to_next_bar / 1000);
-	//	timer_start_point_ = chrono::steady_clock::now();
-	//}
-	//else {
-	//	update();
-	//}
+	if (!isTimerRunning()) {
+		startTimer(static_cast<int>(getTimeToNextBar() / 1000));
+		next_timer_is_bar = true;
+	}
 }
 
 void Sequencer::stop(unsigned int track, std::string json)
 {
-
+	tracks_[track] = make_unique<Pattern>();
 }
 
 double Sequencer::us_to_beats(int64 us)
@@ -106,7 +125,7 @@ int64 Sequencer::getTimeToNextBar()
 	int64 bar_length_us = beats_to_us(bar_length);
 	int64 next_bar_us = ((us_since_begin / bar_length_us) + 1) * bar_length_us;
 	int64 us_to_next_bar = next_bar_us - us_since_begin;
-	return us_to_beats(us_to_next_bar);
+	return us_to_next_bar;
 }
 
 void Sequencer::setBpm(double bpm)
@@ -122,42 +141,42 @@ void Sequencer::setTimeSignature(int num, int den)
 
 void Sequencer::hiResTimerCallback()
 {
-	// update cursor position
+	bool is_bar = next_timer_is_bar;
+	next_timer_is_bar = false;
+
+	// add any pending patterns
+	if (is_bar) {
+		for (auto& pat : pending_patterns_) {
+			tracks_[pat.first] = move(pat.second);
+		}
+		pending_patterns_.clear();
+	}
+
+	// update tracks
+	double next = us_to_beats(getTimeToNextBar());
+	next_timer_is_bar = true;
+	vector<unique_ptr<Event>> events;
 	chrono::time_point<chrono::steady_clock> now = chrono::steady_clock::now();
 	int64 us_elapsed = chrono::duration_cast<chrono::microseconds>(now - timer_start_point_).count();
-	cursor_pos_ += beats_to_us(us_elapsed);
-
-	if (cursor_pos_ >= active_pattern_->length_) {
-		cursor_pos_ -= active_pattern_->length_;
+	double elapsed = us_to_beats(us_elapsed);
+	for (auto& kv : tracks_) {
+		auto time_to_next = kv.second->update(elapsed, events);
+		if (time_to_next < next) {
+			next = time_to_next;
+			next_timer_is_bar = false;
+		}
 	}
 
-	auto it = active_pattern_->events_.lower_bound(cursor_pos_);
-	if (it == active_pattern_->events_.end()) {
-		return;
+	// trigger events
+	for (auto& ev : events) {
+		trigger_event(ev.get());
 	}
 
-	// check backwards
-	auto rit = Events::reverse_iterator(it);
-	while (rit != active_pattern_->events_.rend() &&
-		rit->second->pos_ <= cursor_pos_ && rit->second->pos_ >= cursor_pos_ - 0.001)
-	{
-		++rit;
-	}
-
-	auto fit = rit.base()--;
-	while (fit != active_pattern_->events_.eend() && fit->second->pos_ >= cursor_pos_ - 0.001 &&
-		fit->second->pos_ <= cursor_pos_ + 0.001)
-	{
-		trigger_event(it->second.get());
-		++fit;
-	}
-
-	int64 time_to_next_event = 0;
-
-	startTimer(time_to_next_event / 1000);
+	startTimer(static_cast<int>(beats_to_us(next) / 1000));
 	timer_start_point_ = chrono::steady_clock::now();
 }
 
 void Sequencer::trigger_event(Event* event)
 {
+	cout << "event triggered. type: " << (int)event->type_ << " pos: " << event->pos_ << endl;
 }

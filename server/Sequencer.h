@@ -64,16 +64,13 @@ typedef std::map<double, std::unique_ptr<Event>> Events;
 
 struct Pattern
 {
-	Pattern() : length_(4), cursor_(0) {}
+	Pattern() : length_(0), cursor_(0) {}
 
-	// update elapsed time and retuirn any events that have passed
-	std::vector<std::unique_ptr<Event>> update(double time_elapsed);
-	// get time to next event in pattern
-	double timeToNextEvent();
+	double update(double elapsed, std::vector<std::unique_ptr<Event>>& out_events);
 
 	double length_;
-	Events events_;
 	double cursor_;
+	Events events_;
 };
 
 class Sequencer : public HighResolutionTimer
@@ -99,9 +96,10 @@ private:
 	int time_sig_num_;
 	int time_sig_den_;
 	std::chrono::time_point<std::chrono::steady_clock> timer_start_point_;
+	bool next_timer_is_bar;
 	std::vector<int> active_notes_;
 	std::map<unsigned int, std::unique_ptr<Pattern>> tracks_;
-	std::vector<std::pair<double, std::unique_ptr<Pattern>>> pending_patterns_;
+	std::vector<std::pair<unsigned int, std::unique_ptr<Pattern>>> pending_patterns_;
 
 	double us_to_beats(int64 us);
 	int64 beats_to_us(double beats);
