@@ -57,7 +57,6 @@ public:
 
 enum class Quantize
 {
-	NOW,
 	BAR
 };
 
@@ -65,24 +64,30 @@ typedef std::map<double, std::unique_ptr<Event>> Events;
 
 struct Pattern
 {
-	Pattern() : start_(Quantize::BAR), length_(4) {}
+	Pattern() : length_(4), cursor_(0) {}
 
-	Quantize start_;
+	// update elapsed time and retuirn any events that have passed
+	std::vector<std::unique_ptr<Event>> update(double time_elapsed);
+	// get time to next event in pattern
+	double timeToNextEvent();
+
 	double length_;
 	Events events_;
+	double cursor_;
 };
 
-class Track : public HighResolutionTimer
+class Sequencer : public HighResolutionTimer
 {
 public:
-	Track(double bpm) : cursor_pos_(0), bpm_(bpm) {}
-	~Track() {}
+	Sequencer();
+	~Sequencer();
 
 	// schedule a pattern to be played
-	void play(std::string json);
-	
-	void stop(std::string json);
-	
+	void play(unsigned int track, std::string json);
+
+	// stop the currently playing pattern
+	void stop(unsigned int track, std::string json);
+
 	void setBpm(double bpm);
 	void setTimeSignature(int num, int den);
 
@@ -90,38 +95,17 @@ protected:
 	void hiResTimerCallback();
 
 private:
-	std::unique_ptr<Pattern> active_pattern_;
-	std::unique_ptr<Pattern> loaded_pattern_;
 	double bpm_;
 	int time_sig_num_;
 	int time_sig_den_;
-	double cursor_pos_;
 	std::chrono::time_point<std::chrono::steady_clock> timer_start_point_;
-	std::vector<int> active_notes_; 
+	std::vector<int> active_notes_;
+	std::map<unsigned int, std::unique_ptr<Pattern>> tracks_;
+	std::vector<std::pair<double, std::unique_ptr<Pattern>>> pending_patterns_;
 
-	void update();
-	int64 getTimeToNextBar();
 	double us_to_beats(int64 us);
 	int64 beats_to_us(double beats);
+	int64 getTimeToNextBar();
 	void trigger_event(Event* event);
-};
-
-class Sequencer
-{
-public:
-	Sequencer();
-	~Sequencer();
-
-	/**
-	* Get the track if it exists or create it and return it if it doesn't exist
-	* Note: Track numbers start at 1
-	*/
-	Track* getTrack(unsigned int track);
-
-	void setBpm(double bpm);
-
-private:
-	double bpm_;
-	std::map<unsigned int, std::unique_ptr<Track>> tracks_;
 	
 };
