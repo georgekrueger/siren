@@ -5,28 +5,37 @@ using namespace std;
 double Pattern::update(double elapsed, vector<unique_ptr<Event>>& out_events)
 {
 	cursor_ += elapsed;
+	// just in case. shouldn't be necessary since there is an end-of-pattern event
+	if (cursor_ > length_) {
+		cursor_ = 0;
+	}
 
 	if (events_.empty() || length_ == 0) {
 		return -1;
 	}
 
 	double thresh = 0.001;
-	while (1) {
+	bool done = false;
+	while (!done) {
 		for (auto& kv : events_) {
 			double event_pos = kv.first;
 			auto& event = kv.second;
-			if (cursor_ > length_) {
-				cursor_ = 0;
+			if (event_pos < cursor_ - thresh) {
 				continue;
 			}
-			if (event_pos >= cursor_ - thresh && event_pos <= cursor_ + thresh) {
-				if (event->type_ == Event::Type::CONTROL) {
+			if (event_pos <= cursor_ + thresh) {
+				if (event->type_ == Event::Type::CONTROL && 
+					static_cast<ControlEvent*>(event.get())->action_ == "pattern_end")
+				{
 					cursor_ = 0;
-					continue;
+					break;
 				}
 				out_events.push_back(unique_ptr<Event>(new Event(*event)));
 			}
-			break;
+			else {
+				done = true;
+				break;
+			}
 		}
 	}
 
@@ -101,7 +110,8 @@ void Sequencer::play(unsigned int track, std::string json)
 
 void Sequencer::stop(unsigned int track, std::string json)
 {
-	tracks_[track] = make_unique<Pattern>();
+	//tracks_[track] = make_unique<Pattern>();
+	// TODO: stop at the end of bar
 }
 
 double Sequencer::us_to_beats(int64 us)
@@ -169,6 +179,12 @@ void Sequencer::hiResTimerCallback()
 
 	// trigger events
 	for (auto& ev : events) {
+		if (ev->type_ == Event::Type::NOTE_ON) {
+			active_notes_.insert(static_cast<NoteOnEvent*>(ev.get())->midi_note_);
+		}
+		if (ev->type_ == Event::Type::NOTE_OFF) {
+			active_notes_.erase(static_cast<NoteOffEvent*>(ev.get())->midi_note_);
+		}
 		trigger_event(ev.get());
 	}
 

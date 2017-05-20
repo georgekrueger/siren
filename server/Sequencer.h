@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <set>
 #include <memory>
 #include <chrono>
 #include "../JuceLibraryCode/JuceHeader.h"
@@ -97,7 +98,7 @@ private:
 	int time_sig_den_;
 	std::chrono::time_point<std::chrono::steady_clock> timer_start_point_;
 	bool next_timer_is_bar;
-	std::vector<int> active_notes_;
+	std::set<int> active_notes_;
 	std::map<unsigned int, std::unique_ptr<Pattern>> tracks_;
 	std::vector<std::pair<unsigned int, std::unique_ptr<Pattern>>> pending_patterns_;
 
