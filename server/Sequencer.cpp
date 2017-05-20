@@ -2,56 +2,20 @@
 
 using namespace std;
 
-double Pattern::update(double elapsed, vector<unique_ptr<Event>>& out_events)
+Sequencer::Sequencer() : time_sig_num_(4), time_sig_den_(4), next_timer_is_bar(false)
 {
-	cursor_ += elapsed;
-	// just in case. shouldn't be necessary since there is an end-of-pattern event
-	if (cursor_ > length_) {
-		cursor_ = 0;
-	}
-
-	if (events_.empty() || length_ == 0) {
-		return -1;
-	}
-
-	double thresh = 0.001;
-	bool done = false;
-	while (!done) {
-		for (auto& kv : events_) {
-			double event_pos = kv.first;
-			auto& event = kv.second;
-			if (event_pos < cursor_ - thresh) {
-				continue;
-			}
-			if (event_pos <= cursor_ + thresh) {
-				if (event->type_ == Event::Type::CONTROL && 
-					static_cast<ControlEvent*>(event.get())->action_ == "pattern_end")
-				{
-					cursor_ = 0;
-					break;
-				}
-				out_events.push_back(unique_ptr<Event>(new Event(*event)));
-			}
-			else {
-				done = true;
-				break;
-			}
-		}
-	}
-
-	auto it = events_.lower_bound(cursor_);
-	if (it == events_.end()) {
-		return -1.0;
-	}
-	return it->first - cursor_;
-}
-
-Sequencer::Sequencer() : bpm_(120), time_sig_num_(4), time_sig_den_(4), next_timer_is_bar(false)
-{
+	setBpm(120);
 }
 
 Sequencer::~Sequencer()
 {
+}
+
+void Sequencer::start()
+{
+	if (!isTimerRunning()) {
+
+	}
 }
 
 void Sequencer::play(unsigned int track, std::string json)
@@ -114,33 +78,27 @@ void Sequencer::stop(unsigned int track, std::string json)
 	// TODO: stop at the end of bar
 }
 
-double Sequencer::us_to_beats(int64 us)
+double Sequencer::ms_to_beats(double ms)
 {
-	double beats_per_us = bpm_ / 60 / 1000000;
-	return (us * beats_per_us);
+	return (ms / beat_length_ms_);
 }
 
-int64 Sequencer::beats_to_us(double beats)
+double Sequencer::beats_to_ms(double beats)
 {
-	double bps = bpm_ / 60;
-	return static_cast<int64>(beats * (1000000 / bps));
+	return beats * beat_length_ms_;
 }
 
-int64 Sequencer::getTimeToNextBar()
+double Sequencer::getTimeToNextBar()
 {
-	chrono::time_point<chrono::steady_clock> begin;
-	chrono::time_point<chrono::steady_clock> now = chrono::steady_clock::now();
-	int64 us_since_begin = chrono::duration_cast<std::chrono::microseconds>(now - begin).count();
-	double bar_length = time_sig_num_ / time_sig_den_;
-	int64 bar_length_us = beats_to_us(bar_length);
-	int64 next_bar_us = ((us_since_begin / bar_length_us) + 1) * bar_length_us;
-	int64 us_to_next_bar = next_bar_us - us_since_begin;
-	return us_to_next_bar;
+	double now = Time::getMillisecondCounterHiRes();
+	double next_beat_ms = ( static_cast<unsigned long>((now + 20) / beat_length_ms_) + 1) * beat_length_ms_;
+	return next_beat_ms - now;
 }
 
 void Sequencer::setBpm(double bpm)
 {
 	bpm_ = bpm;
+	beat_length_ms_ = 60000 / bpm;
 }
 
 void Sequencer::setTimeSignature(int num, int den)

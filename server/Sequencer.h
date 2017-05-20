@@ -5,7 +5,6 @@
 #include <map>
 #include <set>
 #include <memory>
-#include <chrono>
 #include "../JuceLibraryCode/JuceHeader.h"
 
 class Event
@@ -58,6 +57,7 @@ public:
 
 enum class Quantize
 {
+	BEAT,
 	BAR
 };
 
@@ -66,8 +66,6 @@ typedef std::map<double, std::unique_ptr<Event>> Events;
 struct Pattern
 {
 	Pattern() : length_(0), cursor_(0) {}
-
-	double update(double elapsed, std::vector<std::unique_ptr<Event>>& out_events);
 
 	double length_;
 	double cursor_;
@@ -79,6 +77,8 @@ class Sequencer : public HighResolutionTimer
 public:
 	Sequencer();
 	~Sequencer();
+
+	void start();
 
 	// schedule a pattern to be played
 	void play(unsigned int track, std::string json);
@@ -94,17 +94,18 @@ protected:
 
 private:
 	double bpm_;
+	double beat_length_ms_;
 	int time_sig_num_;
 	int time_sig_den_;
-	std::chrono::time_point<std::chrono::steady_clock> timer_start_point_;
-	bool next_timer_is_bar;
+	double timer_start_ms_;
+	unsigned int beat_;
 	std::set<int> active_notes_;
 	std::map<unsigned int, std::unique_ptr<Pattern>> tracks_;
 	std::vector<std::pair<unsigned int, std::unique_ptr<Pattern>>> pending_patterns_;
 
-	double us_to_beats(int64 us);
-	int64 beats_to_us(double beats);
-	int64 getTimeToNextBar();
+	double ms_to_beats(double ms);
+	double beats_to_ms(double beats);
+	double getTimeToNextBar();
 	void trigger_event(Event* event);
 	
 };
