@@ -108,7 +108,7 @@ private:
     AudioDeviceManager* deviceManager;
     AudioProcessorPlayer graphPlayer;
     MidiKeyboardState keyState;
-	Sequencer* sequencer;
+	std::unique_ptr<Sequencer> sequencer;
 
 public:
     GraphEditorPanel* graphPanel;

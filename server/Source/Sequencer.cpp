@@ -119,7 +119,7 @@ void Sequencer::setTimeSignature(int num, int den)
 
 void Sequencer::hiResTimerCallback()
 {
-	std::cout << "timer callback" << std::endl;
+	Logger::writeToLog("timer callback");
 	if (beat_ == 0) {
 		// special case to handle first time timer is started
 		++beat_;
@@ -137,6 +137,9 @@ void Sequencer::hiResTimerCallback()
 	unsigned int cursor_inc = ticks_per_beat;
 	for (auto& track : tracks_) {
 		Pattern* pattern = track.second.get();
+		if (pattern->length_ == 0) {
+			continue;
+		}
 		auto event_it = pattern->events_.lower_bound(pattern->cursor_);
 		while (event_it != pattern->events_.end() && event_it->first < pattern->cursor_ + cursor_inc)
 		{

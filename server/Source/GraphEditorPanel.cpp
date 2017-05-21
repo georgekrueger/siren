@@ -1121,7 +1121,8 @@ private:
 GraphDocumentComponent::GraphDocumentComponent (AudioPluginFormatManager& formatManager,
                                                 AudioDeviceManager* deviceManager_)
     : graph (new FilterGraph (formatManager)), deviceManager (deviceManager_),
-      graphPlayer (getAppProperties().getUserSettings()->getBoolValue ("doublePrecisionProcessing", false))
+      graphPlayer (getAppProperties().getUserSettings()->getBoolValue ("doublePrecisionProcessing", false)),
+	  sequencer(std::make_unique<Sequencer>())
 {
     addAndMakeVisible (graphPanel = new GraphEditorPanel (*graph));
 
@@ -1140,6 +1141,8 @@ GraphDocumentComponent::GraphDocumentComponent (AudioPluginFormatManager& format
     deviceManager->addMidiInputCallback (String(), &graphPlayer.getMidiMessageCollector());
 
     graphPanel->updateComponents();
+
+	sequencer->start();
 }
 
 GraphDocumentComponent::~GraphDocumentComponent()
