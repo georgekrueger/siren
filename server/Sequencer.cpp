@@ -2,9 +2,12 @@
 
 using namespace std;
 
-Sequencer::Sequencer() : time_sig_num_(4), time_sig_den_(4)
+const unsigned int ticks_per_beat = 1000;
+
+Sequencer::Sequencer()
 {
 	setBpm(120);
+	setTimeSignature(4, 4);
 }
 
 Sequencer::~Sequencer()
@@ -36,7 +39,7 @@ void Sequencer::play(unsigned int track, std::string json)
 	JSON::parse(json, parse_results);
 	DynamicObject* obj = parse_results.getDynamicObject();
 	if (obj->hasProperty("length")) {
-		new_pattern->length_in_beats_ = static_cast<int>(obj->getProperty("length"));
+		new_pattern->length_ = static_cast<int>(obj->getProperty("length")) * ticks_per_whole_;
 	}
 	if (obj->hasProperty("quantize")) {
 		String start_quantize = obj->getProperty("quantize").toString();
@@ -56,8 +59,10 @@ void Sequencer::play(unsigned int track, std::string json)
 			int note = static_cast<int>(event_items->getReference(2));
 			float velocity = static_cast<float>(event_items->getReference(3));
 			float length = static_cast <float> (event_items->getReference(4));
-			new_pattern->events_.insert(make_pair(pos, make_unique<NoteOnEvent>(note, velocity)));
-			new_pattern->events_.insert(make_pair(pos + length, make_unique<NoteOffEvent>(note)));
+			unsigned int length_in_ticks = static_cast<unsigned int>(length * ticks_per_whole_);
+			unsigned int pos_in_ticks = static_cast<unsigned int>(pos * ticks_per_whole_);
+			new_pattern->events_.insert(make_pair(pos_in_ticks, make_unique<NoteOnEvent>(note, velocity)));
+			new_pattern->events_.insert(make_pair(pos_in_ticks + length_in_ticks, make_unique<NoteOffEvent>(note)));
 		}
 		else if (type == "preset") {
 		}
@@ -87,6 +92,11 @@ double Sequencer::beats_to_ms(double beats)
 	return beats * beat_length_ms_;
 }
 
+double Sequencer::ticks_to_ms(unsigned ticks)
+{
+	return beats_to_ms(ticks / ticks_per_beat);
+}
+
 double Sequencer::getMsToNextBeat()
 {
 	double now = Time::getMillisecondCounterHiRes();
@@ -104,6 +114,7 @@ void Sequencer::setTimeSignature(int num, int den)
 {
 	time_sig_num_ = num;
 	time_sig_den_ = den;
+	ticks_per_whole_ = ticks_per_beat * time_sig_den_;
 }
 
 void Sequencer::hiResTimerCallback()
@@ -122,37 +133,46 @@ void Sequencer::hiResTimerCallback()
 
 	// update tracks
 	double now = Time::getMillisecondCounterHiRes();
-	double cursor_inc = 1 / time_sig_den_;
+	unsigned int cursor_inc = ticks_per_beat;
 	for (auto& track : tracks_) {
 		Pattern* pattern = track.second.get();
-		auto it = pattern->events_.lower_bound(pattern->cursor_);
-		while (it != pattern->events_.end() && it->first < pattern->cursor_ + cursor_inc)
+		auto event_it = pattern->events_.lower_bound(pattern->cursor_);
+		while (event_it != pattern->events_.end() && event_it->first < pattern->cursor_ + cursor_inc)
 		{
-			if (it->second->type_ != Event::Type::CONTROL) {
-				double event_offset_ms = beats_to_ms(it->first - pattern->cursor_);
-				if (it->second->type_ == Event::Type::NOTE_ON) {
-					NoteOnEvent* note_on = static_cast<NoteOnEvent*>(it->second.get());
-					active_notes_.insert(note_on->midi_note_);
+			if (event_it->second->type_ != Event::Type::CONTROL) {
+				double event_offset_ms = ticks_to_ms(event_it->first - pattern->cursor_);
+				if (event_it->second->type_ == Event::Type::NOTE_ON) {
+					NoteOnEvent* note_on = static_cast<NoteOnEvent*>(event_it->second.get());
+					active_notes_[track.first].insert(note_on->midi_note_);
 					MidiMessage m(MidiMessage::noteOn(1, note_on->midi_note_, note_on->velocity_));
 					m.setTimeStamp((now + event_offset_ms) * 0.001);
 					midi_msg_collector_->addMessageToQueue(m);
 				}
-				if (it->second->type_ == Event::Type::NOTE_OFF) {
-					NoteOffEvent* note_off = static_cast<NoteOffEvent*>(it->second.get());
-					active_notes_.erase(note_off->midi_note_);
+				if (event_it->second->type_ == Event::Type::NOTE_OFF) {
+					NoteOffEvent* note_off = static_cast<NoteOffEvent*>(event_it->second.get());
+					active_notes_[track.first].erase(note_off->midi_note_);
 					MidiMessage m(MidiMessage::noteOff(1, note_off->midi_note_));
 					m.setTimeStamp((now + event_offset_ms) * 0.001);
 					midi_msg_collector_->addMessageToQueue(m);
 				}
 			}
-			++it;
+			++event_it;
 		}
 		pattern->cursor_ += cursor_inc;
+		if (pattern->cursor_ >= pattern->length_) {
+			pattern->cursor_ -= pattern->length_;
+		}
 	}
 
 	// if at the end of the bar, load any pending patterns
 	if (beat_ == time_sig_num_) {
 		for (auto& pat : pending_patterns_) {
+			// turn off any active notes that have not finished yet for existing pattern
+			for (int note_num : active_notes_[pat.first]) {
+				MidiMessage m(MidiMessage::noteOff(1, note_num));
+				m.setTimeStamp((now + ticks_to_ms(cursor_inc - 1)) * 0.001);
+				midi_msg_collector_->addMessageToQueue(m);
+			}
 			tracks_[pat.first] = move(pat.second);
 		}
 		pending_patterns_.clear();

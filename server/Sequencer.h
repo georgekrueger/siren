@@ -68,14 +68,14 @@ enum class Quantize
 	BAR
 };
 
-typedef std::map<double, std::unique_ptr<Event>> Events;
+typedef std::map<unsigned int, std::unique_ptr<Event>> Events;
 
 struct Pattern
 {
-	Pattern() : length_in_beats_(0), cursor_(0) {}
+	Pattern() : length_(0), cursor_(0) {}
 
-	int length_in_beats_;
-	double cursor_;
+	unsigned int length_;  // in ticks
+	unsigned int cursor_;  // in ticks
 	Events events_;
 };
 
@@ -106,14 +106,16 @@ private:
 	double beat_length_ms_;
 	unsigned int time_sig_num_;
 	unsigned int time_sig_den_;
+	unsigned int ticks_per_whole_;
 	unsigned int beat_;
-	std::set<int> active_notes_;
+	std::map<unsigned int, std::set<int>> active_notes_;
 	std::map<unsigned int, std::unique_ptr<Pattern>> tracks_;
 	std::vector<std::pair<unsigned int, std::unique_ptr<Pattern>>> pending_patterns_;
 	juce::MidiMessageCollector* midi_msg_collector_;
 
 	double ms_to_beats(double ms);
 	double beats_to_ms(double beats);
+	double ticks_to_ms(unsigned ticks);
 	double getMsToNextBeat();
 	
 };
