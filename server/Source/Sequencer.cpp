@@ -119,6 +119,7 @@ void Sequencer::setTimeSignature(int num, int den)
 
 void Sequencer::hiResTimerCallback()
 {
+	std::cout << "timer callback" << std::endl;
 	if (beat_ == 0) {
 		// special case to handle first time timer is started
 		++beat_;

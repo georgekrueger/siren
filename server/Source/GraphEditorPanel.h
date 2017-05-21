@@ -26,6 +26,7 @@
 #define __GRAPHEDITORPANEL_JUCEHEADER__
 
 #include "FilterGraph.h"
+#include "Sequencer.h"
 
 class FilterComponent;
 class ConnectorComponent;
@@ -107,6 +108,7 @@ private:
     AudioDeviceManager* deviceManager;
     AudioProcessorPlayer graphPlayer;
     MidiKeyboardState keyState;
+	Sequencer* sequencer;
 
 public:
     GraphEditorPanel* graphPanel;
