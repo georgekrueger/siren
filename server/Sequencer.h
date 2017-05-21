@@ -11,31 +11,38 @@ class Event
 {
 public:
 	enum class Type { NOTE_ON, NOTE_OFF, PRESET, PARAM, CONTROL };
-	Event(Type type, double pos) : type_(type), pos_(pos) {}
+	Event(Type type) : type_(type) {}
 	Type type_;
-	double pos_;
+
+	virtual Event* clone() = 0;
 };
 
 class NoteOnEvent : public Event
 {
 public:
-	NoteOnEvent(double pos, int midi_note, float velocity) : Event(Type::NOTE_ON, pos), midi_note_(midi_note), velocity_(velocity) {}
+	NoteOnEvent(int midi_note, float velocity) : Event(Type::NOTE_ON), midi_note_(midi_note), velocity_(velocity) {}
 	int midi_note_;
 	float velocity_;
+
+	Event* clone() override { return new NoteOnEvent(midi_note_, velocity_);  }
 };
 
 class NoteOffEvent : public Event
 {
 public:
-	NoteOffEvent(double pos, int midi_note) : Event(Type::NOTE_OFF, pos), midi_note_(midi_note) {}
+	NoteOffEvent(int midi_note) : Event(Type::NOTE_OFF), midi_note_(midi_note) {}
 	int midi_note_;
+
+	Event* clone() override { return new NoteOffEvent(midi_note_); }
 };
 
 class ControlEvent : public Event
 {
 public:
-	ControlEvent(double pos, std::string action) : Event(Type::CONTROL, pos), action_(action) {}
+	ControlEvent(std::string action) : Event(Type::CONTROL), action_(action) {}
 	std::string action_;
+
+	Event* clone() override { return new ControlEvent(action_); }
 };
 
 /*
@@ -65,9 +72,9 @@ typedef std::map<double, std::unique_ptr<Event>> Events;
 
 struct Pattern
 {
-	Pattern() : length_(0), cursor_(0) {}
+	Pattern() : length_in_beats_(0), cursor_(0) {}
 
-	double length_;
+	int length_in_beats_;
 	double cursor_;
 	Events events_;
 };
@@ -89,23 +96,24 @@ public:
 	void setBpm(double bpm);
 	void setTimeSignature(int num, int den);
 
+	void setMidiMessageCollector(juce::MidiMessageCollector* midi_msg_collector) { midi_msg_collector_ = midi_msg_collector;  }
+
 protected:
 	void hiResTimerCallback();
 
 private:
 	double bpm_;
 	double beat_length_ms_;
-	int time_sig_num_;
-	int time_sig_den_;
-	double timer_start_ms_;
+	unsigned int time_sig_num_;
+	unsigned int time_sig_den_;
 	unsigned int beat_;
 	std::set<int> active_notes_;
 	std::map<unsigned int, std::unique_ptr<Pattern>> tracks_;
 	std::vector<std::pair<unsigned int, std::unique_ptr<Pattern>>> pending_patterns_;
+	juce::MidiMessageCollector* midi_msg_collector_;
 
 	double ms_to_beats(double ms);
 	double beats_to_ms(double beats);
-	double getTimeToNextBar();
-	void trigger_event(Event* event);
+	double getMsToNextBeat();
 	
 };

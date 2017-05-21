@@ -2,7 +2,7 @@
 
 using namespace std;
 
-Sequencer::Sequencer() : time_sig_num_(4), time_sig_den_(4), next_timer_is_bar(false)
+Sequencer::Sequencer() : time_sig_num_(4), time_sig_den_(4)
 {
 	setBpm(120);
 }
@@ -14,7 +14,8 @@ Sequencer::~Sequencer()
 void Sequencer::start()
 {
 	if (!isTimerRunning()) {
-
+		beat_ = 0;
+		startTimer(static_cast<int>(getMsToNextBeat()));
 	}
 }
 
@@ -35,12 +36,15 @@ void Sequencer::play(unsigned int track, std::string json)
 	JSON::parse(json, parse_results);
 	DynamicObject* obj = parse_results.getDynamicObject();
 	if (obj->hasProperty("length")) {
-		new_pattern->length_ = static_cast<double>(obj->getProperty("length"));
+		new_pattern->length_in_beats_ = static_cast<int>(obj->getProperty("length"));
 	}
 	if (obj->hasProperty("quantize")) {
 		String start_quantize = obj->getProperty("quantize").toString();
 		if (start_quantize == "bar") {
 			pattern_start = Quantize::BAR;
+		}
+		else if (start_quantize == "beat") {
+			pattern_start = Quantize::BEAT;
 		}
 	}
 	Array<var>* event_array = parse_results.getArray();
@@ -52,8 +56,8 @@ void Sequencer::play(unsigned int track, std::string json)
 			int note = static_cast<int>(event_items->getReference(2));
 			float velocity = static_cast<float>(event_items->getReference(3));
 			float length = static_cast <float> (event_items->getReference(4));
-			new_pattern->events_.insert(make_pair(pos, make_unique<NoteOnEvent>(pos, note, velocity)));
-			new_pattern->events_.insert(make_pair(pos, make_unique<NoteOffEvent>(pos+length, note)));
+			new_pattern->events_.insert(make_pair(pos, make_unique<NoteOnEvent>(note, velocity)));
+			new_pattern->events_.insert(make_pair(pos + length, make_unique<NoteOffEvent>(note)));
 		}
 		else if (type == "preset") {
 		}
@@ -61,15 +65,10 @@ void Sequencer::play(unsigned int track, std::string json)
 		}
 	}
 
-	auto pattern_end_event = make_unique<ControlEvent>(new_pattern->length_, "pattern_end");
-	new_pattern->events_.insert(make_pair(new_pattern->length_, move(pattern_end_event)));
+	//auto pattern_end_event = make_unique<ControlEvent>("pattern_end");
+	//new_pattern->events_.insert(make_pair(new_pattern->length_in_beats_, move(pattern_end_event)));
 
 	pending_patterns_.push_back(make_pair(track, move(new_pattern)));
-
-	if (!isTimerRunning()) {
-		startTimer(static_cast<int>(getTimeToNextBar() / 1000));
-		next_timer_is_bar = true;
-	}
 }
 
 void Sequencer::stop(unsigned int track, std::string json)
@@ -88,7 +87,7 @@ double Sequencer::beats_to_ms(double beats)
 	return beats * beat_length_ms_;
 }
 
-double Sequencer::getTimeToNextBar()
+double Sequencer::getMsToNextBeat()
 {
 	double now = Time::getMillisecondCounterHiRes();
 	double next_beat_ms = ( static_cast<unsigned long>((now + 20) / beat_length_ms_) + 1) * beat_length_ms_;
@@ -109,48 +108,60 @@ void Sequencer::setTimeSignature(int num, int den)
 
 void Sequencer::hiResTimerCallback()
 {
-	bool is_bar = next_timer_is_bar;
-	next_timer_is_bar = false;
+	if (beat_ == 0) {
+		// special case to handle first time timer is started
+		++beat_;
+		// load pending patterns
+		for (auto& pat : pending_patterns_) {
+			tracks_[pat.first] = move(pat.second);
+		}
+		pending_patterns_.clear();
+		startTimer(static_cast<int>(getMsToNextBeat()));
+		return;
+	}
 
-	// add any pending patterns
-	if (is_bar) {
+	// update tracks
+	double now = Time::getMillisecondCounterHiRes();
+	double cursor_inc = 1 / time_sig_den_;
+	for (auto& track : tracks_) {
+		Pattern* pattern = track.second.get();
+		auto it = pattern->events_.lower_bound(pattern->cursor_);
+		while (it != pattern->events_.end() && it->first < pattern->cursor_ + cursor_inc)
+		{
+			if (it->second->type_ != Event::Type::CONTROL) {
+				double event_offset_ms = beats_to_ms(it->first - pattern->cursor_);
+				if (it->second->type_ == Event::Type::NOTE_ON) {
+					NoteOnEvent* note_on = static_cast<NoteOnEvent*>(it->second.get());
+					active_notes_.insert(note_on->midi_note_);
+					MidiMessage m(MidiMessage::noteOn(1, note_on->midi_note_, note_on->velocity_));
+					m.setTimeStamp((now + event_offset_ms) * 0.001);
+					midi_msg_collector_->addMessageToQueue(m);
+				}
+				if (it->second->type_ == Event::Type::NOTE_OFF) {
+					NoteOffEvent* note_off = static_cast<NoteOffEvent*>(it->second.get());
+					active_notes_.erase(note_off->midi_note_);
+					MidiMessage m(MidiMessage::noteOff(1, note_off->midi_note_));
+					m.setTimeStamp((now + event_offset_ms) * 0.001);
+					midi_msg_collector_->addMessageToQueue(m);
+				}
+			}
+			++it;
+		}
+		pattern->cursor_ += cursor_inc;
+	}
+
+	// if at the end of the bar, load any pending patterns
+	if (beat_ == time_sig_num_) {
 		for (auto& pat : pending_patterns_) {
 			tracks_[pat.first] = move(pat.second);
 		}
 		pending_patterns_.clear();
 	}
 
-	// update tracks
-	double next = us_to_beats(getTimeToNextBar());
-	next_timer_is_bar = true;
-	vector<unique_ptr<Event>> events;
-	chrono::time_point<chrono::steady_clock> now = chrono::steady_clock::now();
-	int64 us_elapsed = chrono::duration_cast<chrono::microseconds>(now - timer_start_point_).count();
-	double elapsed = us_to_beats(us_elapsed);
-	for (auto& kv : tracks_) {
-		auto time_to_next = kv.second->update(elapsed, events);
-		if (time_to_next < next) {
-			next = time_to_next;
-			next_timer_is_bar = false;
-		}
+	++beat_;
+	if (beat_ > time_sig_num_) {
+		beat_ = 1;
 	}
-
-	// trigger events
-	for (auto& ev : events) {
-		if (ev->type_ == Event::Type::NOTE_ON) {
-			active_notes_.insert(static_cast<NoteOnEvent*>(ev.get())->midi_note_);
-		}
-		if (ev->type_ == Event::Type::NOTE_OFF) {
-			active_notes_.erase(static_cast<NoteOffEvent*>(ev.get())->midi_note_);
-		}
-		trigger_event(ev.get());
-	}
-
-	startTimer(static_cast<int>(beats_to_us(next) / 1000));
-	timer_start_point_ = chrono::steady_clock::now();
+	startTimer(static_cast<int>(getMsToNextBeat()));
 }
 
-void Sequencer::trigger_event(Event* event)
-{
-	cout << "event triggered. type: " << (int)event->type_ << " pos: " << event->pos_ << endl;
-}
