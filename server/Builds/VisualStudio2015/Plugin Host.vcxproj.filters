@@ -363,19 +363,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\Source\FilterGraph.cpp">
-      <Filter>Plugin Host</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\FilterIOConfiguration.cpp">
-      <Filter>Plugin Host</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\GraphEditorPanel.cpp">
-      <Filter>Plugin Host</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\Source\HostStartup.cpp">
-      <Filter>Plugin Host</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\InternalFilters.cpp">
       <Filter>Plugin Host</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Source\MainHostWindow.cpp">
@@ -1992,20 +1980,11 @@
     <ClCompile Include="..\..\Source\Sequencer.cpp">
       <Filter>Plugin Host</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Source\MainComponent.cpp">
+      <Filter>Plugin Host</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\Source\FilterGraph.h">
-      <Filter>Plugin Host</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Source\FilterIOConfiguration.h">
-      <Filter>Plugin Host</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Source\GraphEditorPanel.h">
-      <Filter>Plugin Host</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Source\InternalFilters.h">
-      <Filter>Plugin Host</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\Source\MainHostWindow.h">
       <Filter>Plugin Host</Filter>
     </ClInclude>
@@ -3874,6 +3853,23 @@
     <ClInclude Include="..\..\..\..\modules\juce_opengl\juce_opengl.h" />
     <ClInclude Include="..\..\..\..\modules\juce_video\juce_video.h" />
     <ClInclude Include="..\..\Source\Sequencer.h">
+      <Filter>Plugin Host</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\modules\juce_audio_basics\juce_audio_basics.h" />
+    <ClInclude Include="..\..\..\..\modules\juce_audio_devices\juce_audio_devices.h" />
+    <ClInclude Include="..\..\..\..\modules\juce_audio_formats\juce_audio_formats.h" />
+    <ClInclude Include="..\..\..\..\modules\juce_audio_processors\juce_audio_processors.h" />
+    <ClInclude Include="..\..\..\..\modules\juce_audio_utils\juce_audio_utils.h" />
+    <ClInclude Include="..\..\..\..\modules\juce_core\juce_core.h" />
+    <ClInclude Include="..\..\..\..\modules\juce_cryptography\juce_cryptography.h" />
+    <ClInclude Include="..\..\..\..\modules\juce_data_structures\juce_data_structures.h" />
+    <ClInclude Include="..\..\..\..\modules\juce_events\juce_events.h" />
+    <ClInclude Include="..\..\..\..\modules\juce_graphics\juce_graphics.h" />
+    <ClInclude Include="..\..\..\..\modules\juce_gui_basics\juce_gui_basics.h" />
+    <ClInclude Include="..\..\..\..\modules\juce_gui_extra\juce_gui_extra.h" />
+    <ClInclude Include="..\..\..\..\modules\juce_opengl\juce_opengl.h" />
+    <ClInclude Include="..\..\..\..\modules\juce_video\juce_video.h" />
+    <ClInclude Include="..\..\Source\MainComponent.h">
       <Filter>Plugin Host</Filter>
     </ClInclude>
   </ItemGroup>

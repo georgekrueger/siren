@@ -24,7 +24,6 @@
 
 #include "../JuceLibraryCode/JuceHeader.h"
 #include "MainHostWindow.h"
-#include "InternalFilters.h"
 
 #if ! (JUCE_PLUGINHOST_VST || JUCE_PLUGINHOST_VST3 || JUCE_PLUGINHOST_AU)
  #error "If you're building the audio plugin host, you probably want to enable VST and/or AU support"
@@ -43,7 +42,7 @@ public:
         // initialise our settings file..
 
         PropertiesFile::Options options;
-        options.applicationName     = "Juce Audio Plugin Host";
+        options.applicationName     = "Siren Server";
         options.filenameSuffix      = "settings";
         options.osxLibrarySubFolder = "Preferences";
 
@@ -73,29 +72,6 @@ public:
 
     void handleAsyncUpdate() override
     {
-        File fileToOpen;
-
-        for (int i = 0; i < getCommandLineParameterArray().size(); ++i)
-        {
-            fileToOpen = File::getCurrentWorkingDirectory().getChildFile (getCommandLineParameterArray()[i]);
-
-            if (fileToOpen.existsAsFile())
-                break;
-        }
-
-        if (! fileToOpen.existsAsFile())
-        {
-            RecentlyOpenedFilesList recentFiles;
-            recentFiles.restoreFromString (getAppProperties().getUserSettings()->getValue ("recentFilterGraphFiles"));
-
-            if (recentFiles.getNumFiles() > 0)
-                fileToOpen = recentFiles.getFile (0);
-        }
-
-        if (fileToOpen.existsAsFile())
-            if (GraphDocumentComponent* graph = mainWindow->getGraphEditor())
-                if (FilterGraph* ioGraph = graph->graph.get())
-                    ioGraph->loadFrom (fileToOpen, true);
     }
 
     void shutdown() override
@@ -113,7 +89,7 @@ public:
             JUCEApplicationBase::quit();
     }
 
-    const String getApplicationName() override       { return "Juce Plug-In Host"; }
+    const String getApplicationName() override       { return "Siren Server"; }
     const String getApplicationVersion() override    { return ProjectInfo::versionString; }
     bool moreThanOneInstanceAllowed() override       { return true; }
 
