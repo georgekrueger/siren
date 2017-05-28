@@ -12,6 +12,7 @@ Sequencer::Sequencer()
 
 Sequencer::~Sequencer()
 {
+	stopTimer();
 }
 
 void Sequencer::start()
