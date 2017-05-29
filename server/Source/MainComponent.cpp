@@ -1,4 +1,7 @@
 #include "MainComponent.H"
+#include <sstream>
+
+using std::ostringstream;
 
 struct MainComponent::PluginCreateCallback : public AudioPluginFormat::InstantiationCompletionCallback
 {
@@ -46,11 +49,30 @@ MainComponent::~MainComponent()
 
 void MainComponent::loadPlugin(int track, std::string plugin)
 {
-	PluginDescription* desc;
+	OwnedArray<PluginDescription> descs;
 
-	if (desc != nullptr)
-	{
-		formatManager.createPluginInstanceAsync(*desc, graph.getSampleRate(), graph.getBlockSize(),
+	VSTPluginFormat vstFormat;
+	vstFormat.findAllTypesForFile(descs, plugin);
+	if (descs.size() > 0) {
+		ostringstream ss;
+		ss << "Found vst plugin for " << plugin;
+		Logger::writeToLog(ss.str());
+	}
+	else {
+		VST3PluginFormat vst3Format;
+		vst3Format.findAllTypesForFile(descs, plugin);
+		ostringstream ss;
+		ss << "Found vst3 plugin for " << plugin;
+		Logger::writeToLog(ss.str());
+	}
+
+	if (descs.size() > 0) {
+		formatManager.createPluginInstanceAsync(*(descs[0]), graph.getSampleRate(), graph.getBlockSize(),
 			new PluginCreateCallback(this, track));
+	}
+	else {
+		ostringstream ss;
+		ss << "Error: unable to find vst plugin for " << plugin;
+		Logger::writeToLog(ss.str());
 	}
 }
