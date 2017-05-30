@@ -2,6 +2,7 @@
 #include <sstream>
 
 using std::ostringstream;
+typedef AudioProcessorGraph::AudioGraphIOProcessor AudioIOProcessor;
 
 struct MainComponent::PluginCreateCallback : public AudioPluginFormat::InstantiationCompletionCallback
 {
@@ -19,7 +20,9 @@ struct MainComponent::PluginCreateCallback : public AudioPluginFormat::Instantia
 		else
 		{
 			instance->enableAllBuses();
-			AudioProcessorGraph::Node* node = owner->graph.addNode(instance);
+			uint32 nodeId = owner->graph.addNode(instance)->nodeId;
+			owner->graph.addConnection(nodeId, 0, owner->audioOutNodeId, 0);
+			owner->graph.addConnection(nodeId, 1, owner->audioOutNodeId, 1);
 		}
 	}
 
@@ -33,6 +36,9 @@ MainComponent::MainComponent(AudioDeviceManager* _deviceManager)
 	formatManager.addDefaultFormats();
 	graphPlayer.setProcessor(&graph);
 	deviceManager->addAudioCallback(&graphPlayer);
+
+	audioOutProcessor = new AudioIOProcessor(AudioIOProcessor::audioOutputNode);
+	audioOutNodeId = graph.addNode(audioOutProcessor)->nodeId;
 
 	sequencer.setMidiMessageCollector(&graphPlayer.getMidiMessageCollector());
 	sequencer.start();

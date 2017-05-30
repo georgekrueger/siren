@@ -21,6 +21,8 @@ private:
 	AudioPluginFormatManager formatManager;
 	AudioProcessorPlayer graphPlayer;
 	AudioProcessorGraph graph;
+	AudioProcessorGraph::AudioGraphIOProcessor* audioOutProcessor;
+	uint32 audioOutNodeId;
 	Sequencer sequencer;
 	struct PluginCreateCallback;
 
