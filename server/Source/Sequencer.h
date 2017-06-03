@@ -96,7 +96,7 @@ public:
 	void setBpm(double bpm);
 	void setTimeSignature(int num, int den);
 
-	void setMidiMessageCollector(juce::MidiMessageCollector* midi_msg_collector) { midi_msg_collector_ = midi_msg_collector;  }
+	void setMidiMessageCollector(int track_num, juce::MidiMessageCollector* midi_msg_collector);
 
 protected:
 	void hiResTimerCallback();
@@ -110,8 +110,8 @@ private:
 	unsigned int beat_;
 	std::map<unsigned int, std::set<int>> active_notes_;
 	std::map<unsigned int, std::unique_ptr<Pattern>> tracks_;
+	std::map<unsigned int, juce::MidiMessageCollector*> midi_msg_collectors_;
 	std::vector<std::pair<unsigned int, std::unique_ptr<Pattern>>> pending_patterns_;
-	juce::MidiMessageCollector* midi_msg_collector_;
 
 	double ms_to_beats(double ms);
 	double beats_to_ms(double beats);

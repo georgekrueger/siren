@@ -118,6 +118,11 @@ void Sequencer::setTimeSignature(int num, int den)
 	ticks_per_whole_ = ticks_per_beat * time_sig_den_;
 }
 
+void Sequencer::setMidiMessageCollector(int track_num, juce::MidiMessageCollector* midi_msg_collector)
+{
+	midi_msg_collectors_[track_num] = midi_msg_collector;
+}
+
 void Sequencer::hiResTimerCallback()
 {
 	Logger::writeToLog("timer callback");
@@ -137,6 +142,7 @@ void Sequencer::hiResTimerCallback()
 	double now = Time::getMillisecondCounterHiRes();
 	unsigned int cursor_inc = ticks_per_beat;
 	for (auto& track : tracks_) {
+		unsigned int track_num = track.first;
 		Pattern* pattern = track.second.get();
 		if (pattern->length_ == 0) {
 			continue;
@@ -151,14 +157,14 @@ void Sequencer::hiResTimerCallback()
 					active_notes_[track.first].insert(note_on->midi_note_);
 					MidiMessage m(MidiMessage::noteOn(1, note_on->midi_note_, note_on->velocity_));
 					m.setTimeStamp((now + event_offset_ms) * 0.001);
-					midi_msg_collector_->addMessageToQueue(m);
+					midi_msg_collectors_[track_num]->addMessageToQueue(m);
 				}
 				if (event_it->second->type_ == Event::Type::NOTE_OFF) {
 					NoteOffEvent* note_off = static_cast<NoteOffEvent*>(event_it->second.get());
 					active_notes_[track.first].erase(note_off->midi_note_);
 					MidiMessage m(MidiMessage::noteOff(1, note_off->midi_note_));
 					m.setTimeStamp((now + event_offset_ms) * 0.001);
-					midi_msg_collector_->addMessageToQueue(m);
+					midi_msg_collectors_[track_num]->addMessageToQueue(m);
 				}
 			}
 			++event_it;
@@ -173,12 +179,13 @@ void Sequencer::hiResTimerCallback()
 	if (beat_ == time_sig_num_) {
 		for (auto& pat : pending_patterns_) {
 			// turn off any active notes that have not finished yet for existing pattern
-			for (int note_num : active_notes_[pat.first]) {
+			unsigned int track_num = pat.first;
+			for (int note_num : active_notes_[track_num]) {
 				MidiMessage m(MidiMessage::noteOff(1, note_num));
 				m.setTimeStamp((now + ticks_to_ms(cursor_inc - 1)) * 0.001);
-				midi_msg_collector_->addMessageToQueue(m);
+				midi_msg_collectors_[track_num]->addMessageToQueue(m);
 			}
-			tracks_[pat.first] = move(pat.second);
+			tracks_[track_num] = move(pat.second);
 		}
 		pending_patterns_.clear();
 	}

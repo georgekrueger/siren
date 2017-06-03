@@ -31,17 +31,24 @@ struct MainComponent::PluginCreateCallback : public AudioPluginFormat::Instantia
 };
 
 MainComponent::MainComponent(AudioDeviceManager* _deviceManager) 
-	: deviceManager(_deviceManager), graphPlayer(false)
+	: deviceManager(_deviceManager)
 {
 	formatManager.addDefaultFormats();
-	graphPlayer.setProcessor(&graph);
-	deviceManager->addAudioCallback(&graphPlayer);
-
-	audioOutProcessor = new AudioIOProcessor(AudioIOProcessor::audioOutputNode);
-	audioOutNodeId = graph.addNode(audioOutProcessor)->nodeId;
-
-	sequencer.setMidiMessageCollector(&graphPlayer.getMidiMessageCollector());
 	sequencer.start();
+}
+
+MainComponent::Track& MainComponent::getTrack(int track_num)
+{
+	Track& track = tracks[track_num];
+	if (!track.inited) {
+		track.graphPlayer.setProcessor(&track.graph);
+		deviceManager->addAudioCallback(&track.graphPlayer);
+		// create and add midi input and audio output nodes
+		track.audioOutNodeId = track.graph.addNode(new AudioIOProcessor(AudioIOProcessor::audioOutputNode))->nodeId;
+		track.midiInNodeId = track.graph.addNode(new AudioIOProcessor(AudioIOProcessor::midiInputNode))->nodeId;
+		sequencer.setMidiMessageCollector(track_num, &track.graphPlayer.getMidiMessageCollector());
+	}
+	return track;
 }
 
 MainComponent::~MainComponent()
