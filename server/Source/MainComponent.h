@@ -4,6 +4,8 @@
 #include "Sequencer.h"
 #include <vector>
 
+class HttpListener;
+
 class MainComponent : public Component
 {
 public:
@@ -30,6 +32,7 @@ private:
 	};
 	std::map<int, Track> tracks;
 	Sequencer sequencer;
+	std::unique_ptr<HttpListener> http_listener;
 	struct PluginCreateCallback;
 
 	Track& getTrack(int track_num);

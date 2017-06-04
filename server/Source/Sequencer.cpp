@@ -125,7 +125,7 @@ void Sequencer::setMidiMessageCollector(int track_num, juce::MidiMessageCollecto
 
 void Sequencer::hiResTimerCallback()
 {
-	Logger::writeToLog("timer callback");
+	//Logger::writeToLog("timer callback");
 	if (beat_ == 0) {
 		// special case to handle first time timer is started
 		++beat_;

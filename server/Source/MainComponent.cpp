@@ -1,4 +1,5 @@
 #include "MainComponent.H"
+#include "HttpListener.h"
 #include <sstream>
 
 using std::ostringstream;
@@ -38,20 +39,9 @@ MainComponent::MainComponent(AudioDeviceManager* _deviceManager)
 {
 	formatManager.addDefaultFormats();
 	sequencer.start();
-}
 
-MainComponent::Track& MainComponent::getTrack(int track_num)
-{
-	Track& track = tracks[track_num];
-	if (!track.inited) {
-		track.graphPlayer.setProcessor(&track.graph);
-		deviceManager->addAudioCallback(&track.graphPlayer);
-		// create and add midi input and audio output nodes
-		track.audioOutNodeId = track.graph.addNode(new AudioIOProcessor(AudioIOProcessor::audioOutputNode))->nodeId;
-		track.midiInNodeId = track.graph.addNode(new AudioIOProcessor(AudioIOProcessor::midiInputNode))->nodeId;
-		sequencer.setMidiMessageCollector(track_num, &track.graphPlayer.getMidiMessageCollector());
-	}
-	return track;
+	http_listener = std::make_unique<HttpListener>();
+	http_listener->startThread();
 }
 
 MainComponent::~MainComponent()
@@ -94,4 +84,18 @@ void MainComponent::loadPlugin(int track_num, std::string plugin)
 		ss << "Error: unable to find vst plugin for " << plugin;
 		Logger::writeToLog(ss.str());
 	}
+}
+
+MainComponent::Track& MainComponent::getTrack(int track_num)
+{
+	Track& track = tracks[track_num];
+	if (!track.inited) {
+		track.graphPlayer.setProcessor(&track.graph);
+		deviceManager->addAudioCallback(&track.graphPlayer);
+		// create and add midi input and audio output nodes
+		track.audioOutNodeId = track.graph.addNode(new AudioIOProcessor(AudioIOProcessor::audioOutputNode))->nodeId;
+		track.midiInNodeId = track.graph.addNode(new AudioIOProcessor(AudioIOProcessor::midiInputNode))->nodeId;
+		sequencer.setMidiMessageCollector(track_num, &track.graphPlayer.getMidiMessageCollector());
+	}
+	return track;
 }

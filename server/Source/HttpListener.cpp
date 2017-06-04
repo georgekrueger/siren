@@ -1,10 +1,18 @@
 #include "HttpListener.h"
-#include "../JuceLibraryCode/JuceHeader.h"
 #include <string>
 #include <sstream>
 #define MAX_URL_SIZE 2000
 
-HttpListener::HttpListener()
+HttpListener::HttpListener() : Thread("httplistener")
+{
+}
+
+
+HttpListener::~HttpListener()
+{
+}
+
+void HttpListener::run()
 {
 	StreamingSocket* socket = new StreamingSocket();
 	StreamingSocket* conection;
@@ -34,9 +42,4 @@ HttpListener::HttpListener()
 	else {
 		Logger::writeToLog("Connection error");
 	}
-}
-
-
-HttpListener::~HttpListener()
-{
 }
