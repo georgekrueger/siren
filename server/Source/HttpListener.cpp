@@ -18,10 +18,7 @@ void HttpListener::run()
 	StreamingSocket* conection;
 	bool listening = socket->createListener(8080, "127.0.0.1");
 	char buffer[MAX_URL_SIZE];
-	char response[] = "HTTP/1.1 200 OK\r\n"
-		"Content-Type: text/html; charset=UTF-8\r\n\r\n"
-		"<p>This is a paragraph.</p>"
-		"<p>This is another paragraph.</p>";
+	char ok_response[] = "HTTP/1.1 200 OK\r\n";
 
 	if (listening)
 	{
@@ -31,10 +28,12 @@ void HttpListener::run()
 			conection = socket->waitForNextConnection();
 			if (conection != nullptr) {
 				conection->read(buffer, MAX_URL_SIZE - 1, false);
+				std::string request(buffer);
+				std::size_t found = request.find('{');
 				std::ostringstream ss;
 				ss << "Request: " << buffer;
 				Logger::writeToLog(ss.str());
-				conection->write(response, strlen(response));
+				conection->write(ok_response, strlen(ok_response));
 				conection->close();
 			}
 		}
