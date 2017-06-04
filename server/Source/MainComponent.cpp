@@ -19,12 +19,13 @@ struct MainComponent::PluginCreateCallback : public AudioPluginFormat::Instantia
 		}
 		else
 		{
-			Track& track = owner->getTrack(track_num);
 			instance->enableAllBuses();
+			Track& track = owner->getTrack(track_num);
 			uint32 nodeId = track.graph.addNode(instance)->nodeId;
 			track.graph.addConnection(nodeId, 0, track.audioOutNodeId, 0);
 			track.graph.addConnection(nodeId, 1, track.audioOutNodeId, 1);
 			track.graph.addConnection(track.midiInNodeId, 0, nodeId, 0);
+			track.graph.addConnection(track.midiInNodeId, 1, nodeId, 1);
 		}
 	}
 
