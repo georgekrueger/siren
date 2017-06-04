@@ -25,8 +25,6 @@ private:
 		bool inited;
 		AudioProcessorPlayer graphPlayer;
 		AudioProcessorGraph graph;
-		//AudioProcessorGraph::AudioGraphIOProcessor* audioOutProcessor;
-		//AudioProcessorGraph::AudioGraphIOProcessor* midiInProcessor;
 		uint32 audioOutNodeId;
 		uint32 midiInNodeId;
 	};

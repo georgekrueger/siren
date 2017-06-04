@@ -7,7 +7,7 @@ typedef AudioProcessorGraph::AudioGraphIOProcessor AudioIOProcessor;
 struct MainComponent::PluginCreateCallback : public AudioPluginFormat::InstantiationCompletionCallback
 {
 	PluginCreateCallback(MainComponent* myself, int _track)
-		: owner(myself), track(_track)
+		: owner(myself), track_num(_track)
 	{}
 
 	void completionCallback(AudioPluginInstance* instance, const String& error) override
@@ -19,15 +19,17 @@ struct MainComponent::PluginCreateCallback : public AudioPluginFormat::Instantia
 		}
 		else
 		{
+			Track& track = owner->getTrack(track_num);
 			instance->enableAllBuses();
-			uint32 nodeId = owner->graph.addNode(instance)->nodeId;
-			owner->graph.addConnection(nodeId, 0, owner->audioOutNodeId, 0);
-			owner->graph.addConnection(nodeId, 1, owner->audioOutNodeId, 1);
+			uint32 nodeId = track.graph.addNode(instance)->nodeId;
+			track.graph.addConnection(nodeId, 0, track.audioOutNodeId, 0);
+			track.graph.addConnection(nodeId, 1, track.audioOutNodeId, 1);
+			track.graph.addConnection(track.midiInNodeId, 0, nodeId, 0);
 		}
 	}
 
 	MainComponent* owner;
-	int track;
+	int track_num;
 };
 
 MainComponent::MainComponent(AudioDeviceManager* _deviceManager) 
@@ -53,14 +55,16 @@ MainComponent::Track& MainComponent::getTrack(int track_num)
 
 MainComponent::~MainComponent()
 {
-	deviceManager->removeAudioCallback(&graphPlayer);
+	for (auto &kv : tracks) {
+		deviceManager->removeAudioCallback(&kv.second.graphPlayer);
+		kv.second.graphPlayer.setProcessor(nullptr);
+	}
+	tracks.clear();
 
 	deleteAllChildren();
-
-	graphPlayer.setProcessor(nullptr);
 }
 
-void MainComponent::loadPlugin(int track, std::string plugin)
+void MainComponent::loadPlugin(int track_num, std::string plugin)
 {
 	OwnedArray<PluginDescription> descs;
 
@@ -80,8 +84,9 @@ void MainComponent::loadPlugin(int track, std::string plugin)
 	}
 
 	if (descs.size() > 0) {
-		formatManager.createPluginInstanceAsync(*(descs[0]), graph.getSampleRate(), graph.getBlockSize(),
-			new PluginCreateCallback(this, track));
+		Track& track = getTrack(track_num);
+		formatManager.createPluginInstanceAsync(*(descs[0]), track.graph.getSampleRate(), track.graph.getBlockSize(),
+			new PluginCreateCallback(this, track_num));
 	}
 	else {
 		ostringstream ss;
