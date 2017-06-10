@@ -51,7 +51,7 @@ void Sequencer::play(unsigned int track, std::string json)
 			pattern_start = Quantize::BEAT;
 		}
 	}
-	Array<var>* event_array = parse_results.getArray();
+	Array<var>* event_array = obj->getProperty("events").getArray();
 	for (int i = 0; i < event_array->size(); ++i) {
 		Array<var>* event_items = event_array->getReference(i).getArray();
 		String type = event_items->getReference(0);
