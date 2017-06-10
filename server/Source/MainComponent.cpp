@@ -55,6 +55,11 @@ MainComponent::~MainComponent()
 	deleteAllChildren();
 }
 
+void MainComponent::doTest()
+{
+
+}
+
 void MainComponent::loadPlugin(int track_num, std::string plugin)
 {
 	OwnedArray<PluginDescription> descs;

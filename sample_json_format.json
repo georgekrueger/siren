@@ -1,0 +1,17 @@
+
+
+// load instrument
+{
+'type': 'load_instrument',
+'track': 1,
+'instrument': 'Synth1 VST64.dll'
+}
+
+// play pattern
+{
+'type': 'play_pattern'
+'track': 1,
+'length': 4,
+'quantize': 'bar',
+'events': [ ["note", 0, 60, 1.0, 1], ["note", 1, 62, 0.9, 1], ["preset", 1, 1], ["param", 1, "param name", 1.0] ]
+}

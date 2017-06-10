@@ -36,6 +36,7 @@ private:
 	struct PluginCreateCallback;
 
 	Track& getTrack(int track_num);
+	void doTest();
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainComponent)
 };
