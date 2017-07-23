@@ -37,6 +37,7 @@ private:
 
 	Track& getTrack(int track_num);
 	void doTest();
+	void plugLoadDone(AudioPluginInstance* instance);
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainComponent)
 };

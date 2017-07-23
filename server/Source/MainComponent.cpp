@@ -1,6 +1,7 @@
 #include "MainComponent.H"
 #include "HttpListener.h"
 #include <sstream>
+#include <functional>
 
 using std::ostringstream;
 typedef AudioProcessorGraph::AudioGraphIOProcessor AudioIOProcessor;
@@ -59,7 +60,7 @@ MainComponent::~MainComponent()
 	deleteAllChildren();
 }
 
-void plugLoadDone(AudioPluginInstance* instance)
+void MainComponent::plugLoadDone(AudioPluginInstance* instance)
 {
 	if (instance == nullptr) {
 		ostringstream ss;
@@ -73,11 +74,17 @@ void plugLoadDone(AudioPluginInstance* instance)
 		<< " (" << instance->getProgramName(instance->getCurrentProgram()) << ")"
 		<< " num progs: " << instance->getNumPrograms();
 	Logger::writeToLog(ss.str());
+
+	ostringstream playss;
+	playss << "{ 'track': 1, 'length': 4,"
+		   << "'events': [ ['note', 0, 50, 1.0, 1], ['note', 1, 55, 0.9, 1.1] ] }";
+	sequencer.play(playss.str());
 }
 
 void MainComponent::doTest()
 {
-	loadPlugin(1, "C:\\VST\\Synth1 VST.dll", &plugLoadDone);
+	using std::placeholders::_1;
+	loadPlugin(1, "C:\\VST\\Synth1 VST.dll", std::bind(&MainComponent::plugLoadDone, this, _1) );
 }
 
 void MainComponent::loadPlugin(int track_num, std::string plugin, std::function<void(AudioPluginInstance* instance)> done_callback)
