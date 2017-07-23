@@ -12,7 +12,7 @@ public:
 	MainComponent(AudioDeviceManager* _deviceManager);
 	~MainComponent();
 
-	void loadPlugin(int track, std::string plugin);
+	void loadPlugin(int track, std::string plugin, std::function<void(AudioPluginInstance* instance)> done_callback);
 
 	//void paint(Graphics& g);
 	//void mouseDown(const MouseEvent& e);

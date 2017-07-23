@@ -7,8 +7,8 @@ typedef AudioProcessorGraph::AudioGraphIOProcessor AudioIOProcessor;
 
 struct MainComponent::PluginCreateCallback : public AudioPluginFormat::InstantiationCompletionCallback
 {
-	PluginCreateCallback(MainComponent* myself, int _track)
-		: owner(myself), track_num(_track)
+	PluginCreateCallback(MainComponent* myself, int _track, std::function<void(AudioPluginInstance* instance)> _done_callback)
+		: owner(myself), track_num(_track), done_callback(_done_callback)
 	{}
 
 	void completionCallback(AudioPluginInstance* instance, const String& error) override
@@ -28,10 +28,12 @@ struct MainComponent::PluginCreateCallback : public AudioPluginFormat::Instantia
 			track.graph.addConnection(track.midiInNodeId, 0, nodeId, 0);
 			track.graph.addConnection(track.midiInNodeId, 1, nodeId, 1);
 		}
+		done_callback(instance);
 	}
 
 	MainComponent* owner;
 	int track_num;
+	std::function<void(AudioPluginInstance* instance)> done_callback;
 };
 
 MainComponent::MainComponent(AudioDeviceManager* _deviceManager) 
@@ -42,6 +44,8 @@ MainComponent::MainComponent(AudioDeviceManager* _deviceManager)
 
 	http_listener = std::make_unique<HttpListener>();
 	http_listener->startThread();
+
+	doTest();
 }
 
 MainComponent::~MainComponent()
@@ -55,12 +59,28 @@ MainComponent::~MainComponent()
 	deleteAllChildren();
 }
 
-void MainComponent::doTest()
+void plugLoadDone(AudioPluginInstance* instance)
 {
-	loadPlugin(1, "C:\VST\Synth1 VST64.dll");
+	if (instance == nullptr) {
+		ostringstream ss;
+		ss << "Plugin was not loaded!!";
+		Logger::writeToLog(ss.str());
+		return;
+	}
+	
+	ostringstream ss;
+	ss << "Plugin loaded. Current prog: " << instance->getCurrentProgram()
+		<< " (" << instance->getProgramName(instance->getCurrentProgram()) << ")"
+		<< " num progs: " << instance->getNumPrograms();
+	Logger::writeToLog(ss.str());
 }
 
-void MainComponent::loadPlugin(int track_num, std::string plugin)
+void MainComponent::doTest()
+{
+	loadPlugin(1, "C:\\VST\\Synth1 VST.dll", &plugLoadDone);
+}
+
+void MainComponent::loadPlugin(int track_num, std::string plugin, std::function<void(AudioPluginInstance* instance)> done_callback)
 {
 	OwnedArray<PluginDescription> descs;
 
@@ -82,7 +102,7 @@ void MainComponent::loadPlugin(int track_num, std::string plugin)
 	if (descs.size() > 0) {
 		Track& track = getTrack(track_num);
 		formatManager.createPluginInstanceAsync(*(descs[0]), track.graph.getSampleRate(), track.graph.getBlockSize(),
-			new PluginCreateCallback(this, track_num));
+			new PluginCreateCallback(this, track_num, done_callback));
 	}
 	else {
 		ostringstream ss;
