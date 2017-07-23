@@ -23,12 +23,13 @@ void Sequencer::start()
 	}
 }
 
-void Sequencer::play(unsigned int track, std::string json)
+void Sequencer::play(std::string json)
 {
 	// parse json event array
 	// array is an ordered array of arrays (representing events)
 	// example: 
 	// {
+	// 'track': 1,
     // 'length': 4,
     // 'quantize': 'bar',
     // 'events' : [["note", 0, 60, 1.0, 1], ["note", 1, 62, 0.9, 1], ["preset", 1, 1], ["param", 1, "param name", 1.0]]
@@ -42,6 +43,12 @@ void Sequencer::play(unsigned int track, std::string json)
 	if (obj->hasProperty("length")) {
 		new_pattern->length_ = static_cast<int>(obj->getProperty("length")) * ticks_per_whole_;
 	}
+	int track = -1;
+	if (!obj->hasProperty("track")) {
+		return;
+	}
+	track = static_cast<int>(obj->getProperty("track"));
+
 	if (obj->hasProperty("quantize")) {
 		String start_quantize = obj->getProperty("quantize").toString();
 		if (start_quantize == "bar") {

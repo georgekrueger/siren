@@ -57,7 +57,7 @@ MainComponent::~MainComponent()
 
 void MainComponent::doTest()
 {
-
+	loadPlugin(1, "C:\VST\Synth1 VST64.dll");
 }
 
 void MainComponent::loadPlugin(int track_num, std::string plugin)

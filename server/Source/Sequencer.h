@@ -88,7 +88,7 @@ public:
 	void start();
 
 	// schedule a pattern to be played
-	void play(unsigned int track, std::string json);
+	void play(std::string json);
 
 	// stop the currently playing pattern
 	void stop(unsigned int track, std::string json);
