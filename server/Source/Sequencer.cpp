@@ -1,4 +1,5 @@
 #include "Sequencer.h"
+#include <sstream>
 
 using namespace std;
 
@@ -38,7 +39,11 @@ void Sequencer::play(std::string json)
 	auto new_pattern = make_unique<Pattern>();
 	auto pattern_start = Quantize::BAR;
 	var parse_results;
-	JSON::parse(json, parse_results);
+	juce::Result parse_ret = JSON::parse(json, parse_results);
+	if (parse_ret.failed()) {
+		Logger::writeToLog(parse_ret.getErrorMessage());
+		return;
+	}
 	DynamicObject* obj = parse_results.getDynamicObject();
 	if (obj->hasProperty("length")) {
 		new_pattern->length_ = static_cast<int>(obj->getProperty("length")) * ticks_per_whole_;
@@ -71,6 +76,9 @@ void Sequencer::play(std::string json)
 			unsigned int pos_in_ticks = static_cast<unsigned int>(pos * ticks_per_whole_);
 			new_pattern->events_.insert(make_pair(pos_in_ticks, make_unique<NoteOnEvent>(note, velocity)));
 			new_pattern->events_.insert(make_pair(pos_in_ticks + length_in_ticks, make_unique<NoteOffEvent>(note)));
+			std::ostringstream ss;
+			ss << "Sequencer add note " << note << " vel " << velocity << " len " << length;
+			Logger::writeToLog(ss.str());
 		}
 		else if (type == "preset") {
 		}

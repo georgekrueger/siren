@@ -10,7 +10,6 @@ HttpListener::HttpListener() : Thread("httplistener")
 
 HttpListener::~HttpListener()
 {
-	stopThread(10);
 }
 
 void HttpListener::run()

@@ -43,14 +43,16 @@ MainComponent::MainComponent(AudioDeviceManager* _deviceManager)
 	formatManager.addDefaultFormats();
 	sequencer.start();
 
-	http_listener = std::make_unique<HttpListener>();
-	http_listener->startThread();
+	//http_listener = std::make_unique<HttpListener>();
+	//http_listener->startThread();
 
 	doTest();
 }
 
 MainComponent::~MainComponent()
 {
+	//http_listener->stopThread(0);
+
 	for (auto &kv : tracks) {
 		deviceManager->removeAudioCallback(&kv.second.graphPlayer);
 		kv.second.graphPlayer.setProcessor(nullptr);
@@ -76,8 +78,8 @@ void MainComponent::plugLoadDone(AudioPluginInstance* instance)
 	Logger::writeToLog(ss.str());
 
 	ostringstream playss;
-	playss << "{ 'track': 1, 'length': 4,"
-		   << "'events': [ ['note', 0, 50, 1.0, 1], ['note', 1, 55, 0.9, 1.1] ] }";
+	playss << "{ \"track\": 1, \"length\": 4,"
+		   << "\"events\": [ [\"note\", 0, 50, 1.0, 1], [\"note\", 1, 55, 0.9, 1.1] ] }";
 	sequencer.play(playss.str());
 }
 
