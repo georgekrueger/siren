@@ -140,11 +140,12 @@ void Sequencer::setMidiMessageCollector(int track_num, juce::MidiMessageCollecto
 
 void Sequencer::hiResTimerCallback()
 {
-	//Logger::writeToLog("timer callback");
+	Logger::writeToLog("timer callback");
 	if (beat_ == 0) {
 		// special case to handle first time timer is started
 		++beat_;
 		// load pending patterns
+		Logger::writeToLog("First time. Load pending patterns");
 		for (auto& pat : pending_patterns_) {
 			tracks_[pat.first] = move(pat.second);
 		}
@@ -165,6 +166,7 @@ void Sequencer::hiResTimerCallback()
 		auto event_it = pattern->events_.lower_bound(pattern->cursor_);
 		while (event_it != pattern->events_.end() && event_it->first < pattern->cursor_ + cursor_inc)
 		{
+			Logger::writeToLog("Found an event!");
 			if (event_it->second->type_ != Event::Type::CONTROL) {
 				double event_offset_ms = ticks_to_ms(event_it->first - pattern->cursor_);
 				if (event_it->second->type_ == Event::Type::NOTE_ON) {
@@ -192,6 +194,7 @@ void Sequencer::hiResTimerCallback()
 
 	// if at the end of the bar, load any pending patterns
 	if (beat_ == time_sig_num_) {
+		Logger::writeToLog("End of bar. Load pending patterns");
 		for (auto& pat : pending_patterns_) {
 			// turn off any active notes that have not finished yet for existing pattern
 			unsigned int track_num = pat.first;
