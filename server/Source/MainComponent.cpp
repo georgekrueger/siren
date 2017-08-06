@@ -79,7 +79,7 @@ void MainComponent::plugLoadDone(AudioPluginInstance* instance)
 
 	ostringstream playss;
 	playss << "{ \"track\": 1, \"length\": 4,"
-		   << "\"events\": [ [\"note\", 0, 50, 1.0, 1], [\"note\", 1, 55, 0.9, 1.1] ] }";
+		   << "\"events\": [ [\"note\", 0, 50, 1.0, 1], [\"note\", 1, 52, 0.9, 1.0], [\"note\", 2, 53, 0.8, 1.0], [\"note\", 3, 56, 0.7, 1.0] ] }";
 	sequencer.play(playss.str());
 }
 
