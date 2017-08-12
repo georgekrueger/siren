@@ -77,7 +77,7 @@ void Sequencer::play(std::string json)
 			new_pattern->events_.insert(make_pair(pos_in_ticks, make_unique<NoteOnEvent>(note, velocity)));
 			new_pattern->events_.insert(make_pair(pos_in_ticks + length_in_ticks, make_unique<NoteOffEvent>(note)));
 			std::ostringstream ss;
-			ss << "Sequencer add note " << note << " vel " << velocity << " len " << length;
+			ss << "Sequencer add note " << note << " pos " << pos << " vel " << velocity << " len " << length;
 			Logger::writeToLog(ss.str());
 		}
 		else if (type == "preset") {
@@ -140,7 +140,9 @@ void Sequencer::setMidiMessageCollector(int track_num, juce::MidiMessageCollecto
 
 void Sequencer::hiResTimerCallback()
 {
-	Logger::writeToLog("timer callback");
+	ostringstream ss;
+	ss << "timer callback. beat: " << beat_;
+	Logger::writeToLog(ss.str());
 	if (beat_ == 0) {
 		// special case to handle first time timer is started
 		++beat_;
@@ -194,7 +196,7 @@ void Sequencer::hiResTimerCallback()
 
 	// if at the end of the bar, load any pending patterns
 	if (beat_ == time_sig_num_) {
-		Logger::writeToLog("End of bar. Load pending patterns");
+		//Logger::writeToLog("End of bar. Load pending patterns");
 		for (auto& pat : pending_patterns_) {
 			// turn off any active notes that have not finished yet for existing pattern
 			unsigned int track_num = pat.first;
