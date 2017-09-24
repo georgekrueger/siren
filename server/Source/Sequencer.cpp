@@ -36,6 +36,7 @@ void Sequencer::play(std::string json)
     // 'events' : [["note", 0, 60, 1.0, 1], ["note", 1, 62, 0.9, 1], ["preset", 1, 1], ["param", 1, "param name", 1.0]]
     // }
 
+	ostringstream ss;
 	auto new_pattern = make_unique<Pattern>();
 	auto pattern_start = Quantize::BAR;
 	var parse_results;
@@ -46,7 +47,11 @@ void Sequencer::play(std::string json)
 	}
 	DynamicObject* obj = parse_results.getDynamicObject();
 	if (obj->hasProperty("length")) {
-		new_pattern->length_ = static_cast<int>(obj->getProperty("length")) * ticks_per_whole_;
+		new_pattern->length_ = static_cast<int>(obj->getProperty("length")) * ticks_per_beat;
+		ss.str("");
+		ss << "read pattern length: " << static_cast<int>(obj->getProperty("length"))
+			<< " ticks per whole: " << ticks_per_beat << " length in ticks: " << new_pattern->length_;
+		Logger::writeToLog(ss.str());
 	}
 	int track = -1;
 	if (!obj->hasProperty("track")) {
@@ -72,12 +77,17 @@ void Sequencer::play(std::string json)
 			int note = static_cast<int>(event_items->getReference(2));
 			float velocity = static_cast<float>(event_items->getReference(3));
 			float length = static_cast <float> (event_items->getReference(4));
-			unsigned int length_in_ticks = static_cast<unsigned int>(length * ticks_per_whole_);
-			unsigned int pos_in_ticks = static_cast<unsigned int>(pos * ticks_per_whole_);
+			unsigned int length_in_ticks = static_cast<unsigned int>(length * ticks_per_beat);
+			unsigned int pos_in_ticks = static_cast<unsigned int>(pos * ticks_per_beat);
+			//ostringstream ss;
+			ss.str("");
+			ss << "pos " << pos << " pos in ticks: " << pos_in_ticks;
+			Logger::writeToLog(ss.str());
 			new_pattern->events_.insert(make_pair(pos_in_ticks, make_unique<NoteOnEvent>(note, velocity)));
 			new_pattern->events_.insert(make_pair(pos_in_ticks + length_in_ticks, make_unique<NoteOffEvent>(note)));
 			std::ostringstream ss;
-			ss << "Sequencer add note " << note << " pos " << pos << " vel " << velocity << " len " << length;
+			ss << "Sequencer add note " << note << " pos " << pos << " vel " << velocity << " len " << length
+			   << " pos_in_ticks: " << pos_in_ticks << " length_in_ticks: " << length_in_ticks;
 			Logger::writeToLog(ss.str());
 		}
 		else if (type == "preset") {
@@ -165,6 +175,10 @@ void Sequencer::hiResTimerCallback()
 		if (pattern->length_ == 0) {
 			continue;
 		}
+		ostringstream ss;
+		ss << "pattern: " << pattern << " cursor: " << pattern->cursor_ << " length: " << pattern->length_;
+		Logger::writeToLog(ss.str());
+		// find first event that is greater than or equal to cursor
 		auto event_it = pattern->events_.lower_bound(pattern->cursor_);
 		while (event_it != pattern->events_.end() && event_it->first < pattern->cursor_ + cursor_inc)
 		{
