@@ -50,7 +50,7 @@ void Sequencer::play(std::string json)
 		new_pattern->length_ = static_cast<int>(obj->getProperty("length")) * ticks_per_beat;
 		ss.str("");
 		ss << "read pattern length: " << static_cast<int>(obj->getProperty("length"))
-			<< " ticks per whole: " << ticks_per_beat << " length in ticks: " << new_pattern->length_;
+			<< " length in ticks: " << new_pattern->length_;
 		Logger::writeToLog(ss.str());
 	}
 	int track = -1;
@@ -79,13 +79,9 @@ void Sequencer::play(std::string json)
 			float length = static_cast <float> (event_items->getReference(4));
 			unsigned int length_in_ticks = static_cast<unsigned int>(length * ticks_per_beat);
 			unsigned int pos_in_ticks = static_cast<unsigned int>(pos * ticks_per_beat);
-			//ostringstream ss;
+			new_pattern->events_[pos_in_ticks].push_back(make_unique<NoteOnEvent>(note, velocity));
+			new_pattern->events_[pos_in_ticks+length_in_ticks].push_back(make_unique<NoteOffEvent>(note));
 			ss.str("");
-			ss << "pos " << pos << " pos in ticks: " << pos_in_ticks;
-			Logger::writeToLog(ss.str());
-			new_pattern->events_.insert(make_pair(pos_in_ticks, make_unique<NoteOnEvent>(note, velocity)));
-			new_pattern->events_.insert(make_pair(pos_in_ticks + length_in_ticks, make_unique<NoteOffEvent>(note)));
-			std::ostringstream ss;
 			ss << "Sequencer add note " << note << " pos " << pos << " vel " << velocity << " len " << length
 			   << " pos_in_ticks: " << pos_in_ticks << " length_in_ticks: " << length_in_ticks;
 			Logger::writeToLog(ss.str());
@@ -175,29 +171,39 @@ void Sequencer::hiResTimerCallback()
 		if (pattern->length_ == 0) {
 			continue;
 		}
-		ostringstream ss;
+		ss.str("");
 		ss << "pattern: " << pattern << " cursor: " << pattern->cursor_ << " length: " << pattern->length_;
 		Logger::writeToLog(ss.str());
 		// find first event that is greater than or equal to cursor
 		auto event_it = pattern->events_.lower_bound(pattern->cursor_);
 		while (event_it != pattern->events_.end() && event_it->first < pattern->cursor_ + cursor_inc)
 		{
-			Logger::writeToLog("Found an event!");
-			if (event_it->second->type_ != Event::Type::CONTROL) {
-				double event_offset_ms = ticks_to_ms(event_it->first - pattern->cursor_);
-				if (event_it->second->type_ == Event::Type::NOTE_ON) {
-					NoteOnEvent* note_on = static_cast<NoteOnEvent*>(event_it->second.get());
-					active_notes_[track.first].insert(note_on->midi_note_);
-					MidiMessage m(MidiMessage::noteOn(1, note_on->midi_note_, note_on->velocity_));
-					m.setTimeStamp((now + event_offset_ms) * 0.001);
-					midi_msg_collectors_[track_num]->addMessageToQueue(m);
-				}
-				if (event_it->second->type_ == Event::Type::NOTE_OFF) {
-					NoteOffEvent* note_off = static_cast<NoteOffEvent*>(event_it->second.get());
-					active_notes_[track.first].erase(note_off->midi_note_);
-					MidiMessage m(MidiMessage::noteOff(1, note_off->midi_note_));
-					m.setTimeStamp((now + event_offset_ms) * 0.001);
-					midi_msg_collectors_[track_num]->addMessageToQueue(m);
+			for (auto& sub_event : event_it->second)
+			{
+				if (sub_event->type_ != Event::Type::CONTROL) {
+					double event_offset_ms = ticks_to_ms(event_it->first - pattern->cursor_);
+					if (sub_event->type_ == Event::Type::NOTE_ON) {
+						NoteOnEvent* note_on = static_cast<NoteOnEvent*>(sub_event.get());
+						active_notes_[track.first].insert(note_on->midi_note_);
+						MidiMessage m(MidiMessage::noteOn(1, note_on->midi_note_, note_on->velocity_));
+						m.setTimeStamp((now + event_offset_ms) * 0.001);
+						midi_msg_collectors_[track_num]->addMessageToQueue(m);
+						ss.str("");
+						ss << "Track " << track_num << " note on " << note_on->midi_note_ << " vel: " << note_on->velocity_ <<
+							" offset: " << event_offset_ms << " timestamp: " << m.getTimeStamp();
+						Logger::writeToLog(ss.str());
+					}
+					if (sub_event->type_ == Event::Type::NOTE_OFF) {
+						NoteOffEvent* note_off = static_cast<NoteOffEvent*>(sub_event.get());
+						active_notes_[track.first].erase(note_off->midi_note_);
+						MidiMessage m(MidiMessage::noteOff(1, note_off->midi_note_));
+						m.setTimeStamp((now + event_offset_ms) * 0.001);
+						midi_msg_collectors_[track_num]->addMessageToQueue(m);
+						ss.str("");
+						ss << "Track " << track_num << " note off " << note_off->midi_note_ <<
+							" offset: " << event_offset_ms << " timestamp: " << m.getTimeStamp();
+						Logger::writeToLog(ss.str());
+					}
 				}
 			}
 			++event_it;

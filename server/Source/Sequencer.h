@@ -68,7 +68,7 @@ enum class Quantize
 	BAR
 };
 
-typedef std::map<unsigned int, std::unique_ptr<Event>> Events;
+typedef std::map<unsigned int, std::vector<std::unique_ptr<Event>>> Events;
 
 struct Pattern
 {
